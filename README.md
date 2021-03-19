@@ -1,10 +1,3 @@
-<style>
-.center {
-    width: 100%;
-    text-align: center;
-}
-</style>
-
 Factorizing integers is an age-old problem stemming from
 the fundamental theorem of arithmetic:
 that every positive integer has a unique prime factorization.[^fta]
@@ -25,10 +18,10 @@ one such algorithm developed within the last several decades is the *quadratic s
 
 ### Quadratic residue
 
-An integer q is called a *quadratic residue* modulo n if it is congruent to a perfect square modulo n;
-i.e., if there exists an integer x such that:
-
-<div class="center"><img src="./img/01.png"></img></div>
-
-Otherwise, q is called a *quadratic nonresidue* modulo n.
+An integer $q$ is called a *quadratic residue* modulo $n$ if it is congruent to a perfect square modulo $n$;
+i.e., if there exists an integer $x$ such that:
+\[
+    x^2 \equiv q\pmod n.
+\]
+Otherwise, $q$ is called a *quadratic nonresidue* modulo $n$.
 
