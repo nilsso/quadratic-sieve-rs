@@ -1,2 +1,10 @@
 .DS_Store
+.idea
 target
+Quadratic-Sieve
+_minted-*
+__pycache__
+*.aux
+*.log
+*.out
+*.toc
