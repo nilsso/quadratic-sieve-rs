@@ -1,0 +1,312 @@
+% arara: lualatex: {shell: 1}
+\documentclass[11pt,aspectratio=1610,xcolor=dvipsnames]{beamer}
+
+\usetheme{metropolis}
+
+\usepackage{graphicx}
+\usepackage{emoji}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{mathtools}
+%\usepackage{array}
+\usepackage{tabularx}
+\usepackage{colortbl}
+\usepackage{multicol}
+\usepackage{paracol}
+%\usepackage{enumitem}
+%\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+%     linkcolor=blue,
+%     filecolor=magenta,
+%     urlcolor=cyan,
+}
+\urlstyle{same}
+\usepackage{fancyvrb}
+
+\setemojifont{TwemojiMozilla}
+
+\AtBeginDocument{\fontseries{l}\selectfont}
+
+\DeclareMathOperator{\ZZ}{\mathbb{Z}}
+\DeclareMathOperator{\calB}{\mathcal{B}}
+\DeclareMathSymbol{\mminus}{\mathbin}{AMSa}{"39}
+
+\DeclarePairedDelimiter{\abs}{\lvert}{\rvert}
+\DeclarePairedDelimiter{\ceil}{\lceil}{\rceil}
+\DeclarePairedDelimiter{\floor}{\lfloor}{\rfloor}
+
+\newcolumntype{C}{>{\begin{math}}c<{\end{math}}}
+
+\setlength{\parskip}{1em}
+
+\newcommand{\emphcolor}{Red}
+\newcommand{\Emph}[1]{{\color{\emphcolor}\emph{#1}}}
+
+\title[Quadratic Sieve]{Quadratic Sieve Algorithm}
+\subtitle{a.k.a.\@ the Second Fastest Algorithm in the West}
+
+\author{Nils Olsson}
+\date{May $5^\text{th}$, 2021}
+
+\begin{document}
+\begin{frame}
+    \titlepage
+\end{frame}
+
+\begin{frame}
+    The quadratic sieve (QS) algorithm\ldots
+    \begin{itemize}
+        \item Invented by Carl Pomerance in 1981 (improvement to Schroeppel's linear sieve)
+        \item In practice is the second fastest integer factorization algorithm
+            (after the general number field sieve)
+        \item Still fastest for integers over 100 decimal digits
+        \item \textbf{Fundamentally works like (random) square factoring}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{(Random) Square Factoring}
+    Fix $n$ an integer, and suppose we have integers $x$ and $y$ such that:
+    \[
+        x\ne \pm y\pmod n, \quad \text{but }
+        x^2\equiv y^2 \pmod n.
+    \]
+    Then
+    $n$ divides $(x-y)(x+y) = x^2-y^2$,
+    but not $(x-y)$ or $(x+y)$ alone.
+
+    {%
+        \color{Blue}
+        This means $\gcd(x\pm y,n)$ gives``non-trivial''
+        (not $\pm 1$ or $\pm n$) factors of $n$.
+    }
+
+    (This is known as Fermat's factorization method.) \pause
+
+    \textbf{The question: \Emph{how to we find $x$ and $y$?}}
+\end{frame}
+
+\begin{frame}{(Random) Square Factoring}
+    (Attempt 0) \textbf{Pick randomly (a.k.a.\@ cross your fingers)}
+
+    \begin{enumerate}
+        \item Pick $x\in\ZZ$ (randomly).
+        \item If $x^2\pmod n$ is a perfect square, \emoji{call-me-hand}
+    \end{enumerate} \pause
+    (e.g.) With $n=5959$, we randomly \emoji{winking-face} picked $x=80$.
+    We find
+    \begin{itemize}
+        \item ${80}^2 = 6400 \equiv 441 = {21}^2 \pmod{5959}$
+        \item $\gcd(80\pm 21,5959)=59\text{ and }101$,
+            two non-trivial factors of 5959.
+    \end{itemize} \pause
+    (This might be slower than trial division)
+
+    For $x=2,\ldots,\sqrt n$, check if $x$ divides $n$
+    (keep dividing, collect powers, etc.)
+\end{frame}
+
+\begin{frame}{(Random) Square Factoring}
+    (Attempt 1) \textbf{Dixon's method}
+
+    Select a subset of primes
+    $\calB = \{ p_1, p_2, \ldots, p_t \}$
+    called your \Emph{factor base}.
+
+    Any integer $x_i$ that can be written as $x_i = \prod_j p_j^{e_{ij}}$
+    for $p_i\in\calB$ (or at least with $\max(e_{ij})\le\max(p_j)$)
+    is called $p_t$-smooth. \pause
+
+    We want to find pairs $(x_i,y_i)$ satisfying
+    {\color{Orange} two conditions}:
+    \begin{enumerate}
+        \item $x_i^2 \equiv y_i\pmod n$ (\Emph{quadratic residue}), and
+        \item $y_i = \prod_j p_j^{e_{ij}}$ ($y_i$ is $p_t$-smooth)
+    \end{enumerate}
+\end{frame}
+
+\begin{frame}{(Random) Square Factoring}
+    (Attempt 1) \textbf{Dixon's method} (continued)
+
+    Let $\vec e_i=(e_{i1},e_{i2},\ldots)$
+    and $\vec v_i=(e_{i1}\bmod 2,\ldots)$ be vectors of its exponents.
+
+    {%
+        \color{Blue}
+        If a sum of some of these binary vectors is the zero vector,
+        then from their corresponding $x_i$ and $y_i$'s we can construct an
+        $x$ and a $p_t$-smooth $y$ such that
+        \[
+            x\not\equiv y\pmod n,\quad\text{but }
+            x^2\not\equiv y^2\pmod n.
+            \quad \text{\emoji{white-check-mark}}
+        \]
+    }
+\end{frame}
+
+\begin{frame}{Review (Quadratic Residue)}
+    Fix $n\in\ZZ$ and $a\in\ZZ_n^*$.
+
+    If there exists exists an $x\in\ZZ_n^*$ such that $x^2\equiv a\pmod n$
+    \begin{itemize}
+        \item $a$ is a \Emph{quadratic residue/square} modulo $n$;
+            if there is no such $x$, then
+        \item $a$ is a \Emph{quadratic non-residue} modulo $n$.
+    \end{itemize}
+    (e.g.) fix $a=2$
+    \begin{multicols}{2}
+        With $n=5$
+        \begin{flalign*}
+            2^2 = 4  \phantom{\equiv 1} &\not\equiv 2 \pmod 5 & \\
+            3^2 = 9           \equiv 4  &\not\equiv 2 \pmod 5 & \\
+            4^2 = 16          \equiv 1  &\not\equiv 2 \pmod 5 &
+        \end{flalign*}
+        2 is \Emph{not} a non-residue modulo 5.
+
+        \columnbreak
+        With $n=7$
+        \begin{flalign*}
+            2^2 = 4 \not\equiv 2 \pmod 7 && \\
+            {\color{Blue}3^2 = 9    \equiv 2 \pmod 7} && \\
+        \end{flalign*}
+        2 \Emph{is} a quadratic residue modulo 7.
+    \end{multicols}
+\end{frame}
+
+\begin{frame}{(Random) Square Factoring}
+    (Attempt 1) \textbf{Dixon's method} (continued)
+
+    If we construct a matrix $V$ from the $v_i$'s,
+    we're looking for linearly dependent row-index subsets.
+
+    (Note we have a column for each $p_j$ of the factor base $\calB$.)
+
+    To guarantee linear dependence, we collect $\lvert\calB\rvert+1$
+    such $(x_i,y_i)$ pairs. Using linear algebra we find those subsets.
+    \pause
+
+    {\color{Blue}%
+        If for our constructed $x$ and $y$
+        we have $x\not\equiv \pm y$,
+        then for $n$ we have found non-trivial factors $\gcd(x\pm y,n)$.
+    }
+    \pause
+
+    \Emph{But we can do better}
+    %Alas \Emph{we're still picking $x's$ at random}
+    %and testing the {\color{Orange}two conditions}.
+\end{frame}
+
+\begin{frame}{Square Factoring}
+    (Attempt 2) \textbf{Quadratic sieve}
+
+    Fix $n$ a composite that is \Emph{not a perfect-power},
+    $m=\floor{\sqrt{n}}$, and consider the polynomial
+    \begin{align*}
+        f(x) &= x^2 - n \\
+        \Rightarrow
+        f(x+kp)
+        &= x^2 + 2xkp + (kp)^2 - n \\
+        &= f(x) + 2xkp + (kp)^2
+        \equiv f(x)\pmod p.
+    \end{align*} \pause
+    We choose $x_i = (x+m)$ and check whether
+    $y_i = f(x_i) = (x+m)^2 - n$ is $p_t$-smooth.
+\end{frame}
+
+\begin{frame}{Square Factoring}
+    (Attempt 2) \textbf{Quadratic sieve} (continued)
+
+    Things to note:
+    \begin{itemize}
+        \item $x_i^2 = (x+m)^2 \equiv b_i\pmod n$,
+        \item if $p$ divides $b_i$, then $(x+m)^2\equiv n\pmod p$,
+        \item thus $n$ is a modulo $p$.
+    \end{itemize} \pause
+    So $\calB$ only needs to contain $p_j$'s such that $n$ is quadratic residue
+    modulo $p_j$.
+\end{frame}
+
+\begin{frame}{Square Factoring}
+    (Attempt 2) \textbf{Quadratic sieve} (continued)
+
+    To check if $y_i = f(x_i)$ is $p_t$-smooth
+    we \emph{could} use trial division.
+    %(like in previous methods)
+
+    Instead we \Emph{sieve}\pause, by...
+    \begin{enumerate}
+        \item Constructing $Y = \{y_i=(x_i+m)^2-n\}$ for each $x_i$
+            in a \Emph{sieving interval}
+        \item Solving for roots $(r_1,r_2)$ of $n$ modulo $p_j\in\cal B$.
+            If they exist
+        \item For each $y_i\equiv r\pmod m$,
+            dividing $y_i$ by $p_j$ (until no-longer divisible).
+    \end{enumerate} \pause
+    When complete, if $y_i=1$ then $y_i$ completely factorable over $\calB$.
+
+    If we have at least $\abs{\calB}$ of these,
+    then we proceed in the same way as Dixon's:
+
+    Using linear algebra to find linearly dependent
+    $y_i$ binary exponent vectors.
+\end{frame}
+
+\begin{frame}{Implementation}
+    Notes:
+    \begin{itemize}
+        \item Since $n$ must be a non-perfect-power composite,
+            QS factoring is merely one part of a complete factoring algorithm
+            \pause
+        \item \Emph{Haven't even considered how to choose $\calB$,
+            or the sieving interval!}
+            \pause
+    \end{itemize}
+\end{frame}
+\begin{frame}{Implementation}
+    Notes (continued):
+    \begin{itemize}
+        \item Many parts that in theory take we for granted:
+            \begin{itemize}
+                \item Factoring over the factor base
+                \item Solving for quadratic roots of $n$ modulo $p$
+                \item Solving for linear dependencies
+                \item Primality testing
+                \item Perfect-power testing
+            \end{itemize}
+            \pause
+        \item I used (i.e.\@ implemented)
+            \begin{itemize}
+                \item \href
+                    {https://github.com/nilsso/quadratic-sieve-rs/blob/main/python-version/qs-sieving.py\#L178}
+                    {something very simple}
+                \item \href
+                    {https://github.com/nilsso/quadratic-sieve-rs/blob/main/python-version/sqrt_mod.py}
+                    {the Tonelli-Shanks algorithm}
+                \item \href
+                    {https://github.com/nilsso/quadratic-sieve-rs/blob/main/python-version/qs-sieving.py\#L171}
+                    {%
+                        augmented matrix$\to$elementary row operations$\to$
+                        echelon form to find left-nullspace
+                    }
+                \item Skipped this!
+                \item \href
+                    {https://github.com/nilsso/quadratic-sieve-rs/blob/main/python-version/quadratic-sieve.py\#L33}
+                    {``Detecting Perfect Powers In Essentially Linear Time''}
+            \end{itemize}
+    \end{itemize}
+\end{frame}
+\begin{frame}{Implementation}
+    (At least) Two implementations I've written in pure Python:
+    \begin{itemize}
+        \item \href
+            {https://github.com/nilsso/quadratic-sieve-rs/blob/main/python-version/qs-sieveless.py}
+            {qs-sieveless.py}
+            (the ``instructional'' version)
+        \item \href
+            {https://github.com/nilsso/quadratic-sieve-rs/blob/main/python-version/qs-sieving.py}
+            {qs-sieving.py}
+    \end{itemize}
+    Also planning on implementing in Rust.
+\end{frame}
+\end{document}
