@@ -40,7 +40,9 @@ decades is the \emph{quadratic sieve}.
 \end{quote}
 
 \pagebreak
-\section{Details}
+\section{Implementation}
+
+\subsection{Primality Testing}
 
 Given $n$ a composite integer that is not a prime power.
 
@@ -57,24 +59,32 @@ Given $n$ a composite integer that is not a prime power.
         satisfying $a_i^2=(x+m)^2\equiv b_i\pmod n$.
 \end{itemize}
 
-\section{Notes}
-
-\subsection{Legendre symbol}
-
-A multiplicative function with values 1, −1, 0
-that is a quadratic character modulo an odd prime number $p$:
-its value at a (nonzero) quadratic residue mod $p$ is 1
-and at a non-quadratic residue (non-residue)
-is −1. Its value at zero is 0
+\subsubsection{Factor base selection}
 
 \subsection{Quadratic residue}
 
 An integer $q$ is called a \emph{quadratic residue} modulo $n$
 if it is congruent to a perfect square modulo $n$;
-i.e., if there exists an integer $x$ such that:
+that is, if there exists an integer $x$ such that:
 \[
     x^2 \equiv q\pmod n.
 \]
-Otherwise, $q$ is called a \emph{quadratic non-residue} modulo $n$.
+Otherwise, $q$ is called a \emph{non-quadratic residue (non-residue)} modulo $n$.
+Denote $Q_n$ the set of quadratic residues modulo $n$,
+and $\overline Q_n$ the set of non-residues.
+
+\subsection{Legendre symbol}
+
+For an integer $a$ and odd prime $p$, the Legendre symbol $(\frac a p)$ is
+defined:
+\[
+    \left(\frac a p\right)
+    = \left\{\begin{aligned}
+        &1 & &\text{if $a$ is a (non-zero) quadratic residue modulo $p$,} \\
+        -&1 & &\text{if $a$ non-residue modulo $p$, or} \\
+        &0 & &\text{otherwise (if $p$ divides $a$).}
+    \end{aligned}\right.
+\]
+
 \end{document}
 
