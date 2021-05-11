@@ -48,7 +48,8 @@ def find_smooth(n, b, I):
     # Sieve!
     for (p, roots) in p_root_pairs:
         for r in roots:
-            for i in range((r - m) % p, len(V), p):
+            start = (r - m) % p
+            for i in range(start, len(V), p):
                 while V[i] % p == 0:
                     V[i] //= p
     # Construct, collect and return the x's and y's (which are smooth)

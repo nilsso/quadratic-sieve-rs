@@ -53,7 +53,9 @@ def legendre_primes(n, start=2):
             yield p
 
 if __name__ == '__main__':
+    from util import take
     import sys
-    a = int(sys.argv[1])
-    p = int(sys.argv[2])
-    print(legendre(a, p))
+    n = int(sys.argv[1])
+    b = int(sys.argv[2])
+    for (i, p) in enumerate(take(b, legendre_primes(n))):
+        print(i, p)
