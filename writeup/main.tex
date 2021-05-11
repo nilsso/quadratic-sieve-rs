@@ -8,23 +8,18 @@
 \usepackage{caption}
 %\newcolumntype{C}{>{\begin{math}}c<{\end{math}}}
 %\DeclareMathOperator{\SPN}{\text{SPN}}
-% Setup document paragraph spacing
 \setlength{\parindent}{2em}
 \setlength{\parskip}{1em}
-% Environment for inline code figures.
-\newenvironment{code}{\captionsetup{type=listing}}{}
-% Setup hyperref
 \hypersetup{
     colorlinks=true,
     linkcolor=Blue,
-    urlcolor=Blue,
+    urlcolor=Bittersweet,
 }
-% Setup lists (enumitem)
+\newenvironment{code}{\captionsetup{type=listing}}{}
 \setlist{
     %itemsep=1em,
     %first={\setlength{\parskip}{1em}}
 }
-% Setup minted
 \setmonofont[Scale=MatchLowercase,Contextuals={Alternate}]{FuraCode Nerd Font}
 %\setminted{frame=lines,framesep=1em,fontsize=\small}
 \usemintedstyle{gruvbox-light}
@@ -42,14 +37,25 @@
 \date{Spring Semester, 2021}
 \maketitle
 
+{
+\hypersetup{
+    linkcolor=.,
+    linkbordercolor=red,
+}
+\tableofcontents
+}
+
+
+\pagebreak
+
 \begingroup
 \let\clearpage\relax
 \section*{Abstract}
 
-This document serves as a summary of the history and mathematical theory
-behind square factoring functions, as an loose introduction to the Python and
-Rust programming languages, and as a retrospective on implementing the quadratic
-sieve (QS) algorithm in these languages.
+This report serves as a summary of the history and mathematical theory behind
+square factoring functions, as an loose introduction to the Rust programming
+language, and as a retrospective on my own implementing of the quadratic sieve
+(QS) algorithm.
 
 \chapter{Introduction}
 
@@ -75,7 +81,22 @@ blocks for which all modern integer factorization algorithms are made.
 
 \chapter{Implementation}
 
-\section{Implementing in Python}
+I decided to designate the implementation discussion to the Rust implementation
+as opposed to the Python implementation. Not because it is more complete than
+the Python implementation (on the contrary even), but because I find it vastly
+more interesting. Still, I wrote the Python implementation first as a sanity
+check (it is definitely easier and faster to bang-out an implementation in
+Python than Rust) and its entirety can be found here:
+\href{https://github.com/nilsso/quadratic-sieve-rs/tree/main/python-version}{github.com/nilsso/quadratic-sieve-rs/python-version/}.
+
+For those who wish to peruse it, begin in the
+\href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/python-version/qs-sieving.py}{qs-sieving.py}
+module, which can then lead you to the other modules and how they are used
+(like the Tonelli-Shanks
+\href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/python-version/sqrt\_mod.py#L22}{sqrt\_mod}
+algorithm, which leads to the Legendre symbol, \Verb+is_quadratic_prime+
+function and \Verb+legendre_primes+ iterator in
+\href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/python-version/legendre.py}{legendre.py}).
 
 \section{Implementing in Rust}
 
@@ -399,7 +420,8 @@ And, up to this point, with these tools (and with implementing a few other
 helper algorithms) I was additionally able to implement the quadratic sieving
 algorithm itself (that is, finding $B+1$ numbers that are smooth over the factor
 base, guaranteeing linear dependence between their binary exponent vectors).
-\emph{However}, this is where my story for the time being turns sour, as
+
+\emph{However}, this is where the story for the time being turns sour, as
 I am currently \emph{not} able to complete my implementation of the QS algorithm
 based on the fact that my matrix \Verb+struct+ requires knowing the number of rows $M$
 and columns $N$ \emph{at compile time}. Depending on the number to factor $n$,
@@ -430,6 +452,10 @@ tooling) project looks as follows:
         \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/quadratic\_sieve.rs#L74}{an implementation}
         of the Tonelli-Shanks algorithm for calculating square-roots modulo a
         prime $p$, and various other helper functions and structs.
+    \item %
+        \href{https://github.com/nilsso/quadratic-sieve-rs/tree/main/tests}{\textbf{tests/}}
+        contains a few unit tests for sanity checking on the congruence class
+        and matrix structs.
     \item %
         \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/matrix.rs}{\textbf{matrix.rs}}
         contains the \Verb+Matrix+ definition and its implementations.
