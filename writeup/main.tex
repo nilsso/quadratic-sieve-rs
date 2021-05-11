@@ -6,20 +6,29 @@
 \usepackage[nameinlink]{cleveref}
 \usepackage{fancyvrb}
 \usepackage{caption}
-
 %\newcolumntype{C}{>{\begin{math}}c<{\end{math}}}
 %\DeclareMathOperator{\SPN}{\text{SPN}}
-
+% Setup document paragraph spacing
 \setlength{\parindent}{2em}
 \setlength{\parskip}{1em}
-
+% Environment for inline code figures.
 \newenvironment{code}{\captionsetup{type=listing}}{}
-
+% Setup hyperref
+\hypersetup{
+    colorlinks=true,
+    linkcolor=Blue,
+    urlcolor=Blue,
+}
+% Setup lists (enumitem)
+\setlist{
+    %itemsep=1em,
+    %first={\setlength{\parskip}{1em}}
+}
+% Setup minted
 \setmonofont[Scale=MatchLowercase,Contextuals={Alternate}]{FuraCode Nerd Font}
 %\setminted{frame=lines,framesep=1em,fontsize=\small}
 \usemintedstyle{gruvbox-light}
 \setminted{autogobble,breaklines}
-
 \begin{document}
 
 \title{%
@@ -83,6 +92,11 @@ in general, how its features have been very useful for implementing mathematical
 structures, and weave in how I used these features in my own QS implementation.
 If heavy use of programming jargon is not your thing then this section may not
 be very interesting.
+That being said, the full source code of the Rust portion of this project
+can be found here
+\begin{itemize}
+    \item \href{https://github.com/nilsso/quadratic-sieve-rs/tree/main/src}{github.com/nilsso/quadratic-sieve-rs/}
+\end{itemize}
 
 \subsection{Overview of Rust}\label{s:rust-overview}
 
@@ -158,12 +172,13 @@ like \Verb+Foo::foo()+.)
 \noindent
 The fundamental advantage of traits used in this way is that if we then write a
 function in which we need the functionality of \Verb+pow+, then we can require
-that whatever type(s) the function takes as parameters \emph{implement the
-\Verb+Pow+ trait}; furthermore, anyone is allowed to implement \Verb+Pow+
-trait, and thus use our function with their own \Verb+Pow+ implementing type.
-In other words, polymorphism in Rust is achieved by abstracting over the
-functionality that types have, and not the types themselves.
-We call these functionality requirements on types \emph{trait bounds}.
+that whatever type(s) the function works over, and/or takes as parameters,
+\emph{implement the \Verb+Pow+ trait}; furthermore, anyone is allowed to
+implement \Verb+Pow+ trait, and thus use our function with their own \Verb+Pow+
+implementing type. In other words, \emph{polymorphism in Rust is achieved by
+abstracting over the functionality that types have, and not the types
+themselves in particular}. We call these functionality requirements on types
+\emph{trait bounds}.
 
 Another advantage of trait bounds is that they allow us to add functionality to
 a type \emph{incrementally} by requiring increasingly stricter trait bounds for
@@ -174,6 +189,9 @@ At its most generic, a matrix can be just a two-dimensional storage location
 in which we could potentially store anything. As such, in
 \cref{fig:rust-matrix-def} I define \Verb+Matrix+ without any bounds on what
 it is allowed to store aside from the type needing to be clonable.
+(Heed not the syntax \Verb+const M+ and \Verb+const N+, but know that they
+control the size of the matrix; we will cover this syntax in a few paragraphs
+from here)
 \begin{code}
     \begin{minted}{rust}
         #[derive(Clone)]
@@ -213,8 +231,7 @@ leads me to a particular implementation (\cref{fig:rust-matrix-zero}) for my
 \end{code}
 \noindent
 In this snippet we define the construction of a zero matrix of specified size
-$M\times N$ (but heed not the \Verb+const M+ and \Verb+const N+, we cover that
-in a few paragraphs from here). This begs the question: \emph{how do we know
+$M\times N$. This begs the question: \emph{how do we know
 that the type \Verb+T+, for which the matrix is over, has a representation of zero at
 all?} For the generic type \Verb+T+, the only way then for the compiler to know
 that \Verb+T+ has zero is to impose an additional trait bound, in this case a
@@ -276,18 +293,24 @@ matrices.
         /// # Examples
         /// We can add congruence classes if they have the same modulus:
         /// ```
-        /// let a = CongruenceClass::<5>(1); // 1 modulo 5
-        /// let b = CongruenceClass::<5>(4); // 4 modulo 5
+        /// let a = CongruenceClass::<5>::new(1); // 1 modulo 5
+        /// let b = CongruenceClass::<5>::new(4); // 4 modulo 5
         /// 1 + 4 is congruent to 0 modulo 5:
-        /// assert_eq!(a + b, CongruenceClass::<5>(0));
+        /// assert_eq!(a + b, CongruenceClass::<5>::new(0));
         /// ```
         /// But not if they have different modulus:
         /// ```skip
-        /// let a = CongruenceClass::<5>(1); // 1 modulo 5
-        /// let b = CongruenceClass::<6>(5); // 5 modulo 6
+        /// let a = CongruenceClass::<5>::new(1); // 1 modulo 5
+        /// let b = CongruenceClass::<6>::new(5); // 5 modulo 6
         /// a + b; // fails to compile, since 5 != 6
         /// ```
         pub struct CongruenceClass<const M: u32>(pub u32);
+
+        impl<const M: u32> CongruenceClass<M> {
+            pub fn new(x: u32) -> Self {
+                Self(x % M)
+            }
+        }
 
         // `Add` implies `Add<CongruenceClass<M>>`, and
         // `Self` refers to `CongruenceClass<M>`
@@ -356,13 +379,26 @@ success of such operations at runtime, eliminating the perhaps drastic amount of
 time spent checking whether matrices have compatible shapes at runtime
 otherwise.
 
-Up to this point, with these tools (and with implementing a few other helper
-algorithms) I was able to implement the quadratic sieving algorithm itself (that
-is, finding $B+1$ numbers that are smooth over the factor base, guaranteeing
-linear dependence with their binary exponent vectors), able to implement
-row-reduction to Echelon form with my own \Verb+Matrix+, and able to find all
-linearly dependent subsets of the exponent vectors using spanning vectors of the
-left nullspace.
+Now, because \Verb+Matrix+ was defined generically, it was trivial
+to use it and \Verb+CongruenceClass+ in conjunction to solve for the linear
+dependent subsets of the binary exponent vectors. If I know $B$ the size of the
+factor base and have acquired $B+1$ smooth points, then I can map the exponent
+vectors of the prime factorizations of the points into a matrix over $\ZZ_2$;
+in Rust the type of this matrix looks like
+\Verb!Matrix<! \Verb!CongruenceClass<2>,! \Verb!B+1,! \Verb!B>!.
+Having
+\href
+{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/matrix.rs#L344}
+{implemented the row-reduction of a matrix into Echelon form}
+for any generic type \Verb+T+ (achievable given a variety of trait bounds), then
+nothing additional need be implemented for solving for the spanning vectors of
+the exponent matrix left nullspace over the particular type $\ZZ_2$ (that is,
+\Verb!CongruenceClass<2>! in Rust). And thus the problem of solving for the
+linearly dependent exponent vectors was solved.
+And, up to this point, with these tools (and with implementing a few other
+helper algorithms) I was additionally able to implement the quadratic sieving
+algorithm itself (that is, finding $B+1$ numbers that are smooth over the factor
+base, guaranteeing linear dependence between their binary exponent vectors).
 \emph{However}, this is where my story for the time being turns sour, as
 I am currently \emph{not} able to complete my implementation of the QS algorithm
 based on the fact that my matrix \Verb+struct+ requires knowing the number of rows $M$
@@ -372,20 +408,55 @@ large the factor base needs to be (controlling the number of columns of the
 matrix) nor how many smooth numbers it finds (controlling the number of rows).
 And given that \Verb+Matrix+ requires that its dimensions $M$ and $N$ be known
 at compile time, I currently cannot construct the necessary matrices from the
-exponent vectors. A solution will be found eventually, but for now this
-implementation is dead in the water, at this crucial step.
+exponent vectors. A solution will be found eventually (for instance I should be
+able to change the factor base length argument into a const generic of the
+function itself, and proceed), but for now this implementation is dead in the
+water, at this crucial step.
 
-As mentioned in the beginning of this section, the full source code can be found
-within
-\href{https://github.com/nilsso/quadratic-sieve-rs/tree/main/src}{github.com/nilsso/quadratic-sieve-rs/};
-the structure of the Cargo (Rust's default project manager and tooling) project
-looks as follows:
+\noindent
+As mentioned in the beginning of this section, the full source code
+can be found within:
+\begin{itemize}
+    \item \href{https://github.com/nilsso/quadratic-sieve-rs/tree/main/src}{github.com/nilsso/quadratic-sieve-rs/}
+\end{itemize}
+The Rust implementation is not nearly as well documented as the Python version
+yet, but the structure of the Cargo (Rust's default project manager and
+tooling) project looks as follows:
 \begin{itemize}
     \item %
-        \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/quadratic_sieve.rs}{quadratic_sieve.rs}
+        \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/quadratic\_sieve.rs}{\textbf{quadratic\_sieve.rs}}
         contains what is finished of the main algorithm, including the
-        \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/quadratic_sieve.rs#L115}{sieve
-        itself},
+        \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/quadratic\_sieve.rs#L115}{sieve itself},
+        \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/quadratic\_sieve.rs#L74}{an implementation}
+        of the Tonelli-Shanks algorithm for calculating square-roots modulo a
+        prime $p$, and various other helper functions and structs.
+    \item %
+        \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/matrix.rs}{\textbf{matrix.rs}}
+        contains the \Verb+Matrix+ definition and its implementations.
+    \item %
+        \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/congruence\_class.rs}{\textbf{congruence\_class.rs}}
+        contains the \Verb+CongruenceClass+ definition and its implementations.
+    \item %
+        \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/identity.rs}{\textbf{identity.rs}}
+        contains the \Verb+Zero+ and \Verb+One+ traits, and their primitive type
+        implementations.
+    \item %
+        \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/integers.rs}{\textbf{integers.rs}}
+        contains various traits for representing common functionality between
+        integer (or integer-like) types, and as part includes implementations of
+        \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/integers.rs#L13}{the extended Euclidean algorithm}
+        (for calculating GCD, LCM and modular inverses),
+        \href{https://docs.rs/num-integer/0.1.44/src/num_integer/lib.rs.html#462}{Stein's binary GCD algorithm}
+        (currently used for calculating the GCD of unsigned integers), and
+        \href{https://docs.rs/num-integer/0.1.44/src/num_integer/lib.rs.html#462}{repeated squaring modulo $m$},
+        among others.
+    \item As well as a few other miscellaneous bits of code, either
+        for fun like with
+        \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/quotient_group.rs}{quotient groups},
+        \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/complex.rs}{complex numbers} and the
+        \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/conjugate.rs}{\Verb!Conjugate! trait}
+        (of which \Verb+Matrix+ implements as long as \Verb+T+
+        implements \Verb!Conjugate!; i.e.\@ integers and complex numbers).
 \end{itemize}
 
 \end{document}

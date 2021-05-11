@@ -38,7 +38,7 @@ pub struct CongruenceClass<const M: u32>(u32);
 
 impl<const M: u32> CongruenceClass<M> {
     pub const fn new(value: u32) -> Self {
-        CongruenceClass(value)
+        CongruenceClass(value % M)
     }
 }
 
@@ -85,6 +85,7 @@ macro_rules! impl_sub {
             type Output = CongruenceClass<M>;
 
             fn sub(self, rhs: $TR) -> Self::Output {
+                // TODO: Do this with adding multiples of self.0, then subtracting
                 CongruenceClass::<M>(((self.0 as i32 - rhs.0 as i32).rem_euclid(M as i32)) as u32)
             }
         }
@@ -132,5 +133,15 @@ impl<const M: u32> From<u32> for CongruenceClass<M> {
 macro_rules! cc {
     ($a:literal, $M:literal) => {
         CongruenceClass::<$M>::new($a)
+    };
+}
+
+#[macro_export]
+macro_rules! cc_array {
+    ($m:literal,[$($x:literal),*$(,)?]) => {
+        [$(cc!($x,$m),)*]
+    };
+    ($m:literal,[$([$($x:literal),*$(,)?]),*$(,)?]) => {
+        [$(cc_array!($m,[$($x),*]),)*]
     };
 }

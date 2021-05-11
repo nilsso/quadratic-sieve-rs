@@ -22,7 +22,7 @@ pub mod quotient_group;
 pub mod prelude {
     #[rustfmt::skip]
     pub use crate::{
-        {cc}, // CongruenceClass macro
+        {cc, cc_array}, // CongruenceClass macro
         congruence_class::CongruenceClass,
         conjugate::Conjugate,
         identity::{One, Zero},

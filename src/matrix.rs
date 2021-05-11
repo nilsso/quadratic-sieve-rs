@@ -51,7 +51,7 @@ pub trait PrimitiveRef<T, R> = Add<R, Output = T>
     + Rem<R, Output = T>
     + PartialEq;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Matrix<T, const M: usize, const N: usize>
 where
     T: Clone,
@@ -159,12 +159,7 @@ where
             .enumerate()
             .filter_map(move |(k, row)| row.get_mut(k))
     }
-}
 
-impl<T, const M: usize, const N: usize> Matrix<T, M, N>
-where
-    T: Clone,
-{
     pub fn from_value(value: T) -> Self {
         let mut rows = unsafe { MatrixBuffer::<T, M, N>::new() };
         for a in rows.iter_mut() {
@@ -181,6 +176,17 @@ where
         }
         let rows = unsafe { rows.finish() };
         Matrix::from_array(rows)
+    }
+}
+
+impl<T, const M: usize, const N: usize> PartialEq for Matrix<T, M, N>
+where
+    T: PartialEq + Clone,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.iter_row_major()
+            .zip(other.iter_row_major())
+            .all(|(a, b)| a == b)
     }
 }
 
@@ -345,10 +351,8 @@ where
         let mut ech = self.clone();
         let mut r = 0;
         for j in 0..N {
-            //println!("j={} r={}", j, r);
             if let Some(i) = ech.find_nonzero_in_col_after(j, r) {
                 if r != i {
-                    //println!("swap rows {} and {}", i, r);
                     ech.rows.swap(i, r);
                 }
                 let a = ech.rows[r][j].clone();
@@ -356,9 +360,8 @@ where
                     if ech.rows[i][j] != T::ZERO {
                         let b = ech.rows[i][j].clone();
                         let lcm = b.clone().lcm(a.clone());
-                        let c = a.clone() / &lcm;
-                        let d = b / &lcm;
-                        //println!("subtract {}*row{} from {}*row{}", c, r, d, i);
+                        let c = &lcm / &a;
+                        let d = &lcm / &b;
                         for k in 0..N {
                             let s = &d * &ech.rows[i][k] - &c * &ech.rows[r][k];
                             ech.rows[i][k] = s;
@@ -366,7 +369,6 @@ where
                     }
                 }
                 r += 1;
-                //println!("{}", ech);
             }
         }
         ech
