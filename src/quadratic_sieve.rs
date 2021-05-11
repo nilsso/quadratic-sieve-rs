@@ -71,6 +71,16 @@ fn div_while(mut x: i32, d: i32) -> (i32, i32) {
     (x, i)
 }
 
+/// Get two quadratic roots (or double root) of an integer modulo a prime, if they exists.
+///
+/// Algorithm is the Tonelli-Shanks algorithm:
+/// https://en.wikipedia.org/wiki/Tonelli%E2%80%93Shanks_algorithm
+/// http://rosettacode.org/wiki/Tonelli-Shanks_algorithm
+///
+/// * `n` - Integer whose roots to return
+/// * `p` - Prime modulus
+///
+/// Returns `Option<(r1,r2)>`, two quadratic root of n modulo p (or a double root, twice), or None.
 fn sqrt_mod(n: i32, p: i32) -> Option<[i32; 2]> {
     if p == 2 {
         // Any integer has a double root 0 or 1 modulo 2
