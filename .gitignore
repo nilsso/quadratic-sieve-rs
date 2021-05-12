@@ -12,3 +12,6 @@ __pycache__
 *.bcf
 *.blg
 *.xml
+*.nav
+*.snm
+*.vrb
