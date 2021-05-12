@@ -8,3 +8,7 @@ __pycache__
 *.log
 *.out
 *.toc
+*.bbl
+*.bcf
+*.blg
+*.xml
