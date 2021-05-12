@@ -99,16 +99,17 @@ algorithms. In fact, all but one is: trial division.
 At its simplest, the task of fully finding the prime factorization of integer, and the task
 determining if said integer is prime is the same task. The simplest method of doing so is what we
 call \emph{trial division}.
-If $n$ is the integer we wish to factor, then with trial division we consider all the integers from
-$2$ to the first integer greater-than or equal-to the square root of $n$ (since $\sqrt n$ is
-precisely the largest number which divides $n$). The process is as follows:
+If $n$ is the integer we wish to factor, then with trial division we consider an integer $d$ in the 
+range of $2$ to the first integer greater-than or equal-to the square root of $n$ (since $\sqrt n$ is
+precisely the largest number which divides $n$) with which we attempt to divide $n$.
+The process is as follows:
 
 With $d=1,2,3,\ldots$ determine if $n$ is divisible by $d$. If $n$ is divisible by $d$, we take note
 of both $d$ and $e$ the power of $d$ which divides $n$, and let $n \gets n/d^e$. We only stop when
 $d\not\le\ceil{\sqrt n\,}$.
 
 With the algorithm having terminated, we know the prime power factorization of $n$ given the $d$
-divisors and their corresponding $e$ exponents that we collected. Ff none of the $d$ divisors ever
+divisors and their corresponding $e$ exponents that we collected. If none of the $d$ divisors ever
 divided $n$ then we can say with absolute certainty that $n$ is prime. This algorithm is simple
 enough to implement in Python in but a few lines of code:
 \begin{minted}{python}
@@ -121,7 +122,7 @@ enough to implement in Python in but a few lines of code:
         root = ceil(sqrt(n))
         while d <= root and n > 1:
             e = 0
-            while n % d == 0:
+            while n % ] == 0:
                 n //= d
                 e += 1
             if e > 0:
@@ -249,7 +250,7 @@ non-trivial resultant factor for as long as it takes until having completely fac
 
 \section{Congruences of Squares}
 
-In contrast, consider these \emph{less-strict} congruence relation:
+In contrast, consider this \emph{less-strict} congruence relation:
 \[
     a^2 \equiv b^2 \pmod n
     \Rightarrow
@@ -267,8 +268,8 @@ satisfying these two less-strict congruence relations
 We have non-trivial factors of $n$.
 
 Further more, the condition $a^2\equiv b^2\pmod n$ is that of $b^2$ being a \emph{quadratic residue}
-modulo $n$. We say an integer $b$ is a quadratic residue modulo $n$ if there exists an $x$ such that
-$x^2\equiv b\pmod n$, and if no such $x$ exists we call $b$ a quadratic non-residue.
+modulo $n$. We say an integer $y$ is a quadratic residue modulo $n$ if there exists an $x$ such that
+$x^2\equiv y\pmod n$, and if no such $x$ exists we call $y$ a quadratic non-residue.
 If instead we take a prime $p$ to be our modulus, then we have as a fact
 that of the integers from $0$ to $p-1$ half are quadratic residues modulo $p$ when $p$ is odd
 (on the other hand, every integer is a quadratic residue modulo $2$).
@@ -283,7 +284,7 @@ Explicitly, we have the \emph{Legendre symbol} of $a$ modulo odd prime $p$:
     \end{cases}
 \end{equation}
 (These equivalent forms were expressed historically by Legendre and Euler.)
-Then \emph{Jacobi symbol} $\left(\frac{a}{n}\right)$ generalizes the Legendre symbol for
+The \emph{Jacobi symbol} $\left(\frac{a}{n}\right)$ generalizes the Legendre symbol for
 when instead the modulus is a composite $n$
 \cite{textbook}.
 Both the Legendre and Jacobi symbols have many
@@ -299,9 +300,9 @@ can be expressed as the product of powers of the Legendre symbols over each prim
 \end{equation}
 
 Returning to the problem of factoring $n$, the question remains:
-\emph{how do we find $x$ and $y$ pairs satisfying \cref{eq:square-congruence1} and
+\emph{how do we find $a$ and $b$ pairs satisfying \cref{eq:square-congruence1} and
 \cref{eq:square-congruence2}?}
-The most naïve method would be to pick pairs $x$ and $y$ at random, hoping for a collision
+The most naïve method would be to pick pairs $a$ and $b$ at random, hoping for a collision
 satisfying the conditions (but we will not exactly consider this an algorithm).
 
 \section{Dixon's Random Squares Algorithm}
@@ -313,7 +314,7 @@ yields a perfect square in this sense, to then solve the problem of congruences 
 Dixon's algorithm/random squares method is one of such algorithms.
 
 To do so practically, instead of factoring over the set of all the primes we select a subset $\cB$
-of the $t$ first primes. We call this our \emph{factor base}, $\cB = \{p1,p2,\ldots,p_t\}$.
+of the $t$ first primes. We call this our \emph{factor base}, $\cB = \{p_1,p_2,\ldots,p_t\}$.
 We say that an integer $n$ is \emph{$p_t$-smooth} if the largest prime factor of $n$ is less-than or
 equal-to the $t^\text{th}$ prime, and thus smooth over our factor base of all the primes up to $p_t$.
 
@@ -328,7 +329,7 @@ Two such ways, with integers $j\ge 0$ and $k\ge 1$, are $j+\ceil{\sqrt{kn}}$ and
 $\floor{\sqrt{kn}}$; the former produces integers $a_i^2\pmod n$ that tend small, and
 the later produces integers $-a_i^2\pmod n$ that also tend to be small \cite{handbook}.
 (One thing to note is that in the case of the later we need to add $p_0=-1$ to the
-factor base to be able to factor anything in the form $-a_i^2$; ultimately this doesn't change
+factor base to be able to factor anything negative; ultimately this doesn't change
 anything about the algorithm aside that it can greatly improve the speed at which we find pairs
 since we have twice as many potential small $a_i$'s.)
 
@@ -373,8 +374,9 @@ Fix $b^2$ to be:
     b^2 = \prod_{i\in I} b_i = \prod_{j=1}^t p_j^{\epsilon_j}
     \equiv \Big(\prod_{i\in I}a_i\Big)^2 = a^2 \pmod n.
 \end{equation}
-Where because each $\epsilon_j = \prod_{i\in I} e_{ij}$ we has positive parity we know $b^2$ to be a
-perfect square. Thus we can construct $b$ by simply dividing each $\epsilon_j$ by two:
+Where each $\epsilon_j = \prod_{i\in I} e_{ij}\equiv 0\pmod 2$ has positive parity,
+and therefore we know $b^2$ to be a perfect square.
+Thus we can construct $b$ by simply dividing each $\epsilon_j$ by two:
 \begin{equation}
     b = {\Big(\prod_{i\in I} b_i\Big)}^{1/2} = \prod_{j=1}^t p_j^{\epsilon_j/2}.
 \end{equation}
@@ -421,7 +423,7 @@ Letting $n$ be the integer to factor and $m=\floor{\sqrt n}$, consider the polyn
 \end{equation}
 In Dixon's algorithm we selected $a_i$'s either randomly or using a slight
 heuristic. Instead, in the QS algorithm we select $a_i=(x+m)$, calculate a corresponding
-$b_i=(x+m)^2-n$ and test whether $b_i$ is $p_t$-smooth (just like in Dixon's).
+$b_i=f(x)=(x+m)^2-n$ and test whether $b_i$ is $p_t$-smooth (just like in Dixon's).
 Note the relationship between $a_i$ and $b_i$ pair:
 \begin{equation}
     a_i^2
@@ -440,9 +442,9 @@ $(x+m)^2-n$ (from our definition of $b_i$), which gives us
 \end{equation}
 Clearly $(x+m)^2$ is a square, meaning that $n$ is a quadratic residue (modulo $p$)!
 Therefore we can narrow down the factor base to contain only those primes $p_j$ such that
-is a quadratic residue modulo $p$).
+$n$ the integer we wish to factor is itself a quadratic residue modulo $p$.
 And from here we have all the tools we need to begin search for $(a_i,b_i)$ pairs in a fashion
-practically identical to that in Dixon's. The sequence $x=0,\pm 1,\pm 2,\ldots$ even keeps each
+practically identical to that in Dixon's. The sequence $x=0,\pm 1,\pm 2,\ldots$ keeps each
 corresponding $b_i$ fairly small in absolute value (similar to the heuristics in Dixon's).
 
 However, \emph{what of the sieving?}
@@ -462,9 +464,10 @@ integer:
         &\equiv f(x) \equiv (x+m)^2 \pmod{p}.
     \end{aligned}
 \end{equation}
-Thus if we can solve $f(x) = (x+m)^2-n \equiv 0\pmod p$ for $x$ then we have an \emph{entire
-sequences} of numbers $\{f(x):x=0,\pm 1,\pm 2,\ldots,\pm I\}$ (for sieving interval $I$), one
-for any root we find, for which \emph{every} element is in-fact divisible by the prime $p$.
+Thus if we can solve $f(x) = (x+m)^2 \equiv 0\pmod p$ for $x$ then for every root $r$ we find we
+have an \emph{entire sequences} of numbers $\{f(x):x=0,\pm 1,\pm 2,\ldots,\pm I\text { and }x\equiv
+r\pmod p\}$ (for sieving interval $I$) for which \emph{every} element is in-fact divisible by the
+prime $p$.
 Solving for the quadratic roots here is over modulo $p$ which in itself adds another layer of
 complexity; one popular algorithm for calculating these roots, which I implemented, is the
 Tonelli-Shanks algorithm.
@@ -509,8 +512,8 @@ There are several methods of initializing the values of the sieve, but in all ca
 indexed by the parameter $x$. In my implementation, the $x^\text{th}$ value is initialized
 to $f(x)$. Then for each prime in the factor base we solve for the roots $r_1$ and $r_2$ of $f(x)$
 modulo $p$ (with the possibility that $r_1=r_2$).
-Then every element of the sieve with index congruent to $r_j$ modulo $p$ is divisible by $p$,
-and for those values we divide by $p$ (until we no longer can).
+If the root $r_j$ exists, then every element of the sieve with index congruent to $r_j$ modulo $p$ is
+divisible by $p$, and for those values we divide by $p$ (until we no longer can).
 \begin{minted}{python}
     # Find p_b smooth square numbers within a sieving interval
     #
@@ -540,13 +543,12 @@ and for those values we divide by $p$ (until we no longer can).
         return (xs, ys, fb)
 \end{minted}
 Once we have done this for every $p$ in the factor base, we know that whenever we see a value of 1
-within the sieve that that initial value was not just $p_t$-smooth \emph{but also entirely
-factorable} over the factor base. We can recalculate from the indices $x$ the original values for
+within the sieve that the initial value was not just $p_t$-smooth \emph{but also entirely
+factorable} over the factor base. We can recalculate from the indices $x$ the initial values for
 $b_i$ that we now know are factorable as we desire (and as far as prime factorization goes, we can
 divide by primes only in the factor base and still receive a full prime power factorization).
 And from here we find ourselves back at Dixon's method, solving for linear dependencies within
-the points we sieved for, which concludes our overview of congruence of square factorization
-methods.
+the points we sieved for, which concludes the main object of this first-half.
 
 \emph{
     But as a reminder, the quadratic sieve algorithm, like Dixon's method, and like random squares,
@@ -558,7 +560,7 @@ methods.
 The following is some test runs of my implementation of the algorithm, timed using the
 \mintinline{bash}{time} command execution utility. The results were cherry picked to at least
 be composites.
-It is no where near as efficient as I can make it, but this Python venison was more for learning
+It is no where near as efficient as I can make it, but this Python version was more for learning
 and verifying how the algorithm works, in rough detail.
 After the sample output is a snippet of the code of my implementation, specifically the highest
 scope of the algorithm, \mintinline{python}{def qs(n, b, I)}, and parts of the matrix operation
@@ -653,6 +655,43 @@ during the implementation of the QS algorithm.
         mat = deepcopy(mat)
         #...
 \end{minted}
+
+\subsection{Additional Notes on QS}
+
+The QS algorithm as we have discussed is only one particular conceptualization of the algorithm.
+One variation considers that if we have integers $a_1^2$ and $a_2^2$ that are \emph{not} $p_t$-smooth
+(smooth over our chosen factor base), there may may be a way to combine their partial relations
+to form a third composite of $a_1$ and $a_2$ that \emph{is} $p_t$-smooth. For example (as
+\href{https://en.wikipedia.org/wiki/Quadratic_sieve#Partial_relations_and_cycles}{sourced from Wikipedia})
+if $n=91$ and $\cB=\{2,3,5,7\}$, integers $a_1^2={21}^2\equiv 7\cdot 11\pmod{91}$ and
+$a_2^2={29}^2\equiv 2\cdot 11\pmod{91}$ are not 7-smooth. However, if we multiply these together
+\begin{align*}
+    (21\cdot 29)^2
+    &\equiv 2\cdot 7\cdot 11^2 \pmod{91} \\
+    ({11}^{-1})^2\cdot (21\cdot 29)^2
+    \equiv (58\cdot 21\cdot 29)^2
+    &\equiv 2\cdot 7 \pmod{91}.
+\end{align*}
+We find a $p_t$-smooth integer.
+
+Secondly, we only considered the QS algorithm for a single polynomial $f(x)=(x+m)^2-n$,
+where we could if careful select multiple polynomials of a particular family.
+The advantage to this variation is the potential to sieve within each polynomial in parallel
+across multiple CPU threads.
+
+Lastly, inventor of the QS algorithm Carl Pomerance conjectures \cite{pomerance}
+that it has complexity of order
+\[
+    O(\exp((1+o(1))(\log n\log\log n)^{1/2}).
+\]
+This places it within the category of sub-exponential functions,
+similar to the one algorithm that is faster than QS---the general number field sieve (GNFS)---which
+has the following conjectured complexity \cite{wiki-gnfs}:
+\[
+    O\left((\exp\left({\left(\frac{64}{9}\right)}^{1/3}+o(1)\right)(\ln n)^{1/3}(\ln\ln n)^{2/3}\right).
+\]
+And as such QS is slightly worse in comparison to GNFS, thought they both lie
+within the category of sub-exponential functions.
 
 \chapter{Notes on Implementation}
 
