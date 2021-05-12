@@ -8,22 +8,25 @@
 \usepackage{caption}
 %\newcolumntype{C}{>{\begin{math}}c<{\end{math}}}
 %\DeclareMathOperator{\SPN}{\text{SPN}}
-\setlength{\parindent}{2em}
-\setlength{\parskip}{1em}
+\setmonofont[Scale=MatchLowercase,Contextuals={Alternate}]{FuraCode Nerd Font}
+%\setminted{frame=lines,framesep=1em,fontsize=\small}
+\usemintedstyle{gruvbox-light}
+\setminted{autogobble,breaklines}
 \hypersetup{
     colorlinks=true,
     linkcolor=Blue,
     urlcolor=Bittersweet,
 }
-\newenvironment{code}{\captionsetup{type=listing}}{}
 \setlist{
     %itemsep=1em,
     %first={\setlength{\parskip}{1em}}
 }
-\setmonofont[Scale=MatchLowercase,Contextuals={Alternate}]{FuraCode Nerd Font}
-%\setminted{frame=lines,framesep=1em,fontsize=\small}
-\usemintedstyle{gruvbox-light}
-\setminted{autogobble,breaklines}
+\setlength{\parindent}{2em}
+\setlength{\parskip}{1em}
+\newenvironment{code}{\captionsetup{type=listing}}{}
+\newcommand{\colorA}{RoyalBlue}
+\newcommand{\colorB}{PineGreen}
+\newcommand{\colorC}{OrangeRed}
 \begin{document}
 
 \title{%
@@ -38,11 +41,8 @@
 \maketitle
 
 {
-\hypersetup{
-    linkcolor=.,
-    linkbordercolor=red,
-}
-\tableofcontents
+    \hypersetup{linkcolor=.}
+    \tableofcontents
 }
 
 
@@ -75,9 +75,344 @@ blocks for which all modern integer factorization algorithms are made.
 
 \endgroup
 
-\chapter{Square Factoring}
+\chapter{Factoring via Congruences of Squares}
 
-\chapter{The Quadratic Sieve}
+In this section we will cover several factorization algorithms and the fundamental math that they
+are based upon. These individual topics lead-up to covering the quadratic sieve (QS) algorithm
+in detail.
+
+Something to pay special attention to is the conditions on the parameters for various algorithms,
+because many of the factoring algorithms which we will discuss are \emph{not} complete factoring
+algorithms. In fact, all but one is: trial division.
+
+\section{Trial Division}
+At its simplest, the task of fully finding the prime factorization of integer, and the task
+determining if said integer is prime is the same task. The simplest method of doing so is what we
+call \emph{trial division}.
+If $n$ is the integer we wish to factor, then with trial division we consider all the integers from
+$2$ to the first integer greater-than or equal-to the square root of $n$ (since $\sqrt n$ is
+precisely the largest number which divides $n$). The process is as follows:
+
+With $d=1,2,3,\ldots$ determine if $n$ is divisible by $d$. If $n$ is divisible by $d$, we take note
+of both $d$ and $e$ the power of $d$ which divides $n$, and let $n \gets n/d^e$. We only stop when
+$d\not\le\ceil{\sqrt n\,}$.
+
+With the algorithm having terminated, we know the prime power factorization of $n$ given the $d$
+divisors and their corresponding $e$ exponents that we collected. Ff none of the $d$ divisors ever
+divided $n$ then we can say with absolute certainty that $n$ is prime. This algorithm is simple
+enough to implement in Python in but a few lines of code:
+\begin{minted}{python}
+    # Factor an integer via trial division
+    # @param n Integer to factor
+    # @return Its prime power factorization
+    def factor_trial_division(n):
+        fs = []
+        d = 2
+        root = ceil(sqrt(n))
+        while d <= root and n > 1:
+            e = 0
+            while n % d == 0:
+                n //= d
+                e += 1
+            if e > 0:
+                fs += [(d, e)]
+                root = ceil(sqrt(n))
+            d += 1
+        if n > 1:
+            fs += [(n, 1)]
+        return fs
+
+    # # Examples
+    # ```
+    # assert(factor_trial_division(73583) == [(73583, 1)])
+    # assert(factor_trial_division(73584) == [(2, 4), (3, 2), (7, 1), (73, 1)])
+    # ```
+\end{minted}
+Despite the naïveté of the algorithm, the trial division algorithm is often one of the very fastest
+when it comes to factoring small integers. In particular, if the integer to factor is a power of
+only two then trial division will outperform any of the other, more complex algorithms that we will
+soon cover. In fact, the main topic of this paper---the quadratic sieve algorithm---fails entirely
+not only for factoring primes but for factoring perfect powers in particular. (We will in fact be
+using trial division for one of the integral steps in some of the later algorithms.)
+
+\section{Fermat's Method}
+Named after Baroque lawyer and mathematician Pierre de Fermat, Fermat's method of factorization
+relies on a simple fact: that any odd integer is equal to the difference of squares.
+
+\newcommand{\bdot}{\begin{tikzpicture} \fill[\colorA] (0,0) circle(3pt); \end{tikzpicture}}
+\newcommand{\pdot}{\begin{tikzpicture} \fill[\colorB] (0,0) circle(3pt); \end{tikzpicture}}
+\newcommand{\rdot}{\begin{tikzpicture} \fill[\colorC] (0,0) circle(3pt); \end{tikzpicture}}
+\columnratio{0.6}
+\begin{paracol}{2}
+    \noindent
+    As a simple visual proof of this fact, let $N$ be any odd integer.
+    By definition of $N$ being odd, $N=2m+1$ for some integer $b$.
+    \begin{enumerate}
+        \item Draw a single \pdot{} dot capped on either side by $m$ \bdot{} dots.
+            The count of these dots is clearly $N$.
+        \item Bend the right side of \bdot{} dots down to form a square.
+        \item Fill the square with more \rdot{} dots.
+    \end{enumerate}
+    Then clearly the area of the whole square minus the area of the inner square
+    of only \rdot{} dots is equal to $N$ (a difference of squares).
+
+    \switchcolumn
+
+    \begin{enumerate}[itemsep=3em]
+        \item
+            \adjustbox{center,valign=t,raise=-2pt}{%
+                \begin{tikzpicture}
+                    \foreach \i in {0,...,2} { \fill [\colorA] (0.5*\i,      0) circle(3pt); }
+                    \fill [\colorB] (1.5,0) circle(3pt);
+                    \foreach \i in {4,...,6} { \fill [\colorA] (0.5*\i,      0) circle(3pt); }
+                \end{tikzpicture}
+            }
+        \item
+            \adjustbox{center,valign=t,raise=-2pt}{%
+                \begin{tikzpicture}
+                    \foreach \i in {0,...,2} { \fill [\colorA] (0.5*\i,      0) circle(3pt); }
+                    \fill [\colorB] (1.5,0) circle(3pt);
+                    \foreach \i in {1,...,3} { \fill [\colorA] (   1.5, -0.5*\i) circle(3pt); }
+                \end{tikzpicture}
+            }
+        \item
+            \adjustbox{center,valign=t,raise=-2pt}{%
+                \begin{tikzpicture}
+                    \foreach \i in {0,...,2} { \fill [\colorA] (0.5*\i,      0) circle(3pt); }
+                    \fill [\colorB] (1.5,0) circle(3pt);
+                    \foreach \i in {1,...,3} { \fill [\colorA] (   1.5, -0.5*\i) circle(3pt); }
+                    \foreach \x in {0,...,2} {
+                        \foreach \y in {1,...,3} {
+                            \fill [\colorC] (0.5*\x, -0.5*\y) circle(3pt);
+                        }
+                    }
+                \end{tikzpicture}
+            }
+    \end{enumerate}
+\end{paracol}
+And if neither $a+b$ nor $a-b$ equal one or $N$, then they are \emph{non-trivial} factors of
+$N$ (the trivial factors of $N$ being $1$ and $N$ itself).
+
+With this fact in hand, let $n$ be an odd composite integer; we wish to find $c$ and $d$ such that
+$n=cd$.
+(Note that we are only interested in odds since, if $n$ were even, we simply factor out all copies
+to $2$ until all that is left is supposedly an odd composite.) We know that for some $a$ and $b$
+with $n=a^2-b^2$ that the difference of squares is factorable into $(a+b)(a-b)$. This implies
+$c=a+b$ and $d=a-b$ with which we derive $a=(c+d)/2$ and $b=(c-d)/2$. We can verify:
+\[
+    n
+    = {\left(\frac{c+d}{2}\right)}^2-{\left(\frac{c-d}{2}\right)}^2
+    = \frac{(c^2+2cd-d^2)-(c^2-2cd+d^2)}{4} = cd.
+\]
+Rewriting the difference of squares statement as $b^2=a^2-n$,
+and without loss of generality letting $a\ge\sqrt{n}>b$,
+the goal of Fermat's method in one way or another is to attempt to find an $a$
+satisfying the \emph{strict} relationship $b=\sqrt{a^2-n}$ where $b$ is an integer.
+We can similarly implement this algorithm easily in Python but just checking all integers
+from $\ceil{\sqrt{n}\,}$ to $n$.
+Square roots are relatively cheap, but we do require a method of checking whether a root is an
+integer (we use $[b^2]\overset{?}{=}{\ceil b}^2$):
+\begin{minted}{python}
+    # Find two factors of an odd integer via Fermat's method
+    # @param n Odd integer to factor
+    # @return Two factors (possibly trivial)
+    def factor_fermat(n):
+        for a in range(ceil(sqrt(n)), n + 1):
+            b = sqrt(a**2 - n)
+            if int(b**2) == ceil(b)**2:
+                return(int(a + b), int(a - b))
+
+    # # Examples
+    # ```
+    # assert(factor_fermat(811) == (811, 1))
+    # assert(factor_fermat(813) == (271, 3))
+    # ```
+\end{minted}
+As such there's not much improvement in terms of the complexity of this algorithm when compared to
+trial division; at worst case we have checked $\ceil{\sqrt{n}\,}$ integers when $n$ is prime.
+Further more, we can only use this algorithm when $n$ is odd, and we only get two particular factors
+for $n$. However, it is incredibly simple in this regard, and of course this simple implementation
+would only be part of a complete factoring algorithm which we could achieve by factoring 2 out from
+any even $n$ to to form an odd $n$, factoring every odd $n$ via Fermat's method, and factoring each
+non-trivial resultant factor for as long as it takes until having completely factored $n$.
+
+\section{Congruences of Squares}
+
+In contrast, consider these \emph{less-strict} congruence relation:
+\[
+    a^2 \equiv b^2 \pmod n
+    \Rightarrow
+    a^2-b^2 = (a+b)(a-b) \equiv 0 \pmod n.
+\]
+If $n$ divides $(a+b)(a-b)$, then $\gcd(a+b,n)$ and $\gcd(a-b,n)$ certainly both yield factors of
+$n$. However, if $a\pm b\equiv 0\pmod n$, then $\gcd(a\pm b,n)=n$ or 1, the trivial factors of $n$.
+So in addition to $a^2\equiv b^2\pmod n$ we add the constraint that $a\not\equiv\pm b\pmod n$, such
+that neither $a+b$ or $a-b$ are divisible by $n$. And \emph{if we find} a pair $a$ and $b$
+satisfying these two less-strict congruence relations
+\begin{gather}
+    a^2 \equiv b^2 \pmod n, \label{eq:square-congruence1} \\
+    a \not\equiv \pm b \pmod n \label{eq:square-congruence2}
+\end{gather}
+We have non-trivial factors of $n$.
+
+Further more, the condition $a^2\equiv b^2\pmod n$ is that of $b^2$ being a \emph{quadratic residue}
+modulo $n$. We say an integer $b$ is a quadratic residue modulo $n$ if there exists an $x$ such that
+$x^2\equiv b\pmod n$, and if no such $x$ exists we call $b$ a quadratic non-residue.
+If instead we take a prime $p$ to be our modulus, then we have as a fact
+that of the integers from $0$ to $p-1$ half are quadratic residues modulo $p$ when $p$ is odd
+(on the other hand, every integer is a quadratic residue modulo $2$).
+Explicitly, we have the \emph{Legendre symbol} of $a$ modulo odd prime $p$:
+\begin{equation}
+    \left(\frac{a}{p}\right)
+    = a^{p-1/2}\pmod p
+    \equiv \begin{cases}
+        \phantom{-}0, & \text{if $p$ divides $a$,} \\
+        \phantom{-}1, & \text{if $a$ is a quadratic residue modulo $p$, or} \\
+        -1, & \text{if $a$ is a quadratic non-residue modulo $p$.}
+    \end{cases}
+\end{equation}
+(These equivalent forms were expressed historically by Legendre and Euler.)
+Then \emph{Jacobi symbol} $\left(\frac{a}{n}\right)$ generalizes the Legendre symbol for
+when instead the modulus is a composite $n$. Both the Legendre and Jacobi symbols have many
+useful properties, but in particular if $n$ has the prime factorization
+$p_1^{e_1}p_2^{e_2}\cdots p_k^{e_k}$, then we have that the Jacobi symbol of $a$ modulo $n$
+can be expressed as the product of powers of the Legendre symbols over each prime:
+\begin{equation}
+    \left(\frac{a}{n}\right) =
+    {\left(\frac{a}{p_1}\right)}^{e_1}
+    {\left(\frac{a}{p_2}\right)}^{e_2}
+    \cdots
+    {\left(\frac{a}{p_k}\right)}^{e_k}.
+\end{equation}
+
+Returning to the problem of factoring $n$, the question remains:
+\emph{how do we find $x$ and $y$ pairs satisfying \cref{eq:square-congruence1} and
+\cref{eq:square-congruence2}?}
+The most naïve method would be to pick pairs $x$ and $y$ at random, hoping for a collision
+satisfying the conditions (but we will not exactly consider this an algorithm).
+
+\section{Dixon's Random Squares Algorithm}
+
+Consider that a composite integer is a perfect square only if every prime in its prime factorization
+is raised to a positive power (that is, every exponent has even parity). Factoring algorithms of the
+\emph{random square} variety seek to find find ``small'' composite integers such that their product
+yields a perfect square in this sense, to then solve the problem of congruences of squares.
+Dixon's algorithm/random squares method is one of such algorithms.
+
+To do so practically, instead of factoring over the set of all the primes we select a subset $\cB$
+of the $t$ first primes. We call this our \emph{factor base}, $\cB = \{p1,p2,\ldots,p_t\}$.
+We say that an integer $n$ is \emph{$p_t$-smooth} if the largest prime factor of $n$ is less-than or
+equal-to the $t^\text{th}$ prime, and thus smooth over our factor base of all the primes up to $p_t$.
+
+And instead of looking for $a$ and $b$ pairs satisfying the (already weak) conditions from previously,
+by Dixon's method we look for integers $a_i$'s which satisfy the \emph{even weaker still} relation
+$a_i^2\equiv b_i\pmod n$ and where the $b_i$ we calculate is smooth over our factor base
+(this step of checking whether $b_i$ is $p_t$-smooth requires at least trial division and thus
+determining its prime factorization---we will need this later).
+In Dixon's method, the selection of these various $a_i$'s can be random, but considering that trial
+division may be expensive it is favorable to find them in a way where $b_i\pmod n$ ends up small.
+Two such ways, with integers $j\ge 0$ and $k\ge 1$, are $j+\ceil{\sqrt{kn}}$ and
+$\floor{\sqrt{kn}}$; the former produces integers $a_i^2\pmod n$ that tend small, and
+the later produces integers $-a_i^2\pmod n$ that also tend to be small.
+(One thing to note is that in the case of the later we need to add $p_0=-1$ to the
+factor base to be able to factor anything in the form $-a_i^2$; ultimately this doesn't change
+anything about the algorithm aside that it can greatly improve the speed at which we find pairs
+since we have twice as many potential small $a_i$'s.)
+
+But once we have found pairs $(a_i,b_i)$ satisfying $a_i^2\equiv b_i\pmod n$ and $b_i$ is
+$p_t$-smooth, \emph{what do we do with them?} Recall the consideration (three paragraphs back) that
+an integer is a perfect square if and only if its prime power factorization is of even powers of
+primes. For each of the $(a_i,b_i)$ pairs we express $b_i$ as a product of powers of the primes in
+$\cB$ our factor base and record these exponents as vectors in both decimal and over the field
+$\ZZ_2$:
+\begin{equation}
+    b_i = p_1^{e_{i1}}\cdot p_2^{e_{i2}}\cdots p_t^{e_{it}}
+    \quad\Rightarrow\quad
+    \vec e_i = \langle e_{i1},e_{i2},\ldots,e_{it}\rangle
+    \quad\Rightarrow\quad
+    \vec v_i = \langle v_{i1},v_{i2},\ldots,v_{it} \rangle
+\end{equation}
+For each $p_j\in\cB$, and where $v_{ij}\equiv e_{ij}\pmod 2$ (i.e.\@ the parity of $e_{ij}$).
+Recall that we know the prime power factorization of $b_i$ from checking that $b_i$ is $p_t$-smooth
+via trial division. If the sum of a subset of these $\vec v_i$ equals the zero vector, \emph{then we
+have found a congruence of squares satisfying $a^2\equiv b^2\pmod n$}, just with a few extra steps
+left to construct $a$ from the $a_i$'s and $b$ from the $b_i$'s. In terms of linear algebra, we have
+found a linearly dependent subset of the $\vec v_i$ vectors. This clues us into quantifying how many
+$(a_i,b_i)$ pairs we need to \emph{guarantee} that we actually have enough such pairs:
+
+\noindent
+Our vectors have $t$ columns, one for every prime in $\cB$ the factor base; if we form a matrix of
+the vectors, then the rank of this matrix is at most $\abs{\cB}$ the number of columns; lastly, if
+the number of rows of the matrix is equal to one plus its rank (the number of columns), then we
+\emph{guarantee} that the row space contains linear dependencies (since fundamentally the row rank
+and column rank of a matrix are always equal, and at ``worst'' the column space is entirely linearly
+dependent with rank $\abs{\cB}$).
+
+\noindent
+Thus we need \emph{at least} $\abs{\cB}+1$ $(a_i,b_i)$ pairs to guarantee that we can construct a
+congruence of squares.
+
+Constructing $a$ and $b$ is actually fairly straight forward:
+let $I\subseteq\{1,2,3\ldots,t\}$ be the set of indices $i$ for which we found
+$\sum_{i\in I}\vec v_i = \vec 0$.
+Fix $b^2$ to be:
+\begin{equation}\label{eq:dixon-forming-a2-b2}
+    b^2 = \prod_{i\in I} b_i = \prod_{j=1}^t p_j^{\epsilon_j}
+    \equiv \Big(\prod_{i\in I}a_i\Big)^2 = a^2 \pmod n.
+\end{equation}
+Where because each $\epsilon_j = \prod_{i\in I} e_{ij}$ we has positive parity we know $b^2$ to be a
+perfect square. Thus we can construct $b$ by simply dividing each $\epsilon_j$ by two:
+\begin{equation}
+    b = {\Big(\prod_{i\in I} b_i\Big)}^{1/2} = \prod_{j=1}^t p_j^{\epsilon_j/2}.
+\end{equation}
+It suffices to calculate $a=\prod_{i\in I}a_i$ since we already have that $a^2$ is clearly a perfect
+square in the satisfied congruence relation \cref{eq:dixon-forming-a2-b2}.
+
+Despite all the work we have done, if we find that $a\equiv \pm b\pmod n$ then the pair $(a,b)$
+has unfortunately failed to yield anything but the trivial factors of $n$.
+As for our avenues of recourse, we can:
+\begin{enumerate}
+    \item Check for other linearly dependent subsets $I$ and their corresponding pairs $(a,b)$. If
+        every subset failed, then
+    \item We can search for more $(a_i,b_i)$ pairs (we call this increasing the search interval),
+        perform the previous actions all over again but with these new pairs, then if that fails
+    \item Start over with an expanded factor base.
+\end{enumerate}
+
+\section{The Quadratic Sieve Algorithm}
+
+Last but not least we discuss the QS algorithm, but despite all this lead-up there is truly not that
+much more to it in comparison to Dixon's. The QS algorithm functions almost identically to Dixon's
+method, except for the way in which potential $a_i$'s are selected: first by a simple translation,
+and second in actual ``sieving.''
+
+Letting $n$ be the integer to factor and $m=\floor{\sqrt n}$, consider the polynomial
+$f(x)=(x+m)^2-n$. In Dixon's algorithm we selected $a_i$'s either randomly or using a slight
+heuristic. Instead, in the QS algorithm we select $a_i=(x+m)$, calculate a corresponding
+$b_i=(x+m)^2-n$ and test whether $b_i$ is $p_t$-smooth (just like in Dixon's).
+Note the relationship between $a_i$ and $b_i$ pair:
+\begin{equation}
+    a_i^2
+    = (x+m)^2
+    = (x+m)^2 - n + n
+    \equiv (x+m)^2 - n
+    = b_i \pmod n.
+\end{equation}
+Identical to the congruence relation from Dixon's.
+Recall that we want the $b_i$'s to factor entirely over our chosen factor base $\cB$ (that is to be
+$p_t$-smooth), but suppose $b_i$ is divisible by some prime $p$ in general. Then $p$ also divides
+$(x+m)^2-n$ (from our definition of $b_i$), which gives us
+\begin{equation}
+    (x+m)^2 - n \equiv 0 \pmod p \Rightarrow
+    (x+m)^2 \equiv n \pmod p.
+\end{equation}
+Clearly $(x+m)^2$ is a square, meaning that $n$ is a quadratic residue (modulo $p$)!
+Therefore we can narrow down the factor base to contain only those primes $p_j$ such that
+is a quadratic residue modulo $p$).
+
+From here we have all the tools we need to begin search for $(a_i,b_i)$ pairs in a fashion
+practically identical to that in Dixon's. The sequence $x=0,\pm 1,\pm 2,\ldots$ even keeps $b_i$
+fairly small in absolute value (similar to the heuristics in Dixon's).
 
 \chapter{Implementation}
 
@@ -94,32 +429,22 @@ For those who wish to peruse it, begin in the
 module, which can then lead you to the other modules and how they are used
 (like the Tonelli-Shanks
 \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/python-version/sqrt\_mod.py#L22}{sqrt\_mod}
-algorithm, which leads to the Legendre symbol, \Verb+is_quadratic_prime+
-function and \Verb+legendre_primes+ iterator in
+algorithm, which leads to the Legendre symbol implementation, the \Verb+is_quadratic_prime+
+function and the \Verb+legendre_primes+ iterator in
 \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/python-version/legendre.py}{legendre.py}).
 
+With the fundamental algorithm completed in Python, I made my move to Rust.
+This section is primarily a retrospective on my experience in implementing \emph{(or at
+least attempting to implement)} the QS algorithm in Rust. I intend for it to be useful to anyone
+with an interest in Rust, as well as useful to myself in both reviewing my own knowledge of the
+language and providing a figurative map of my thoughts on the design of my project's implementation.
+I go over the Rust language in general, how its features have been very useful for implementing
+mathematical structures, and weave in how I used these features in my own QS implementation. If
+heavy use of programming jargon is not your thing then this section may not be very interesting.
+That being said, the full source code of the Rust portion of this project can be found here:
+\href{https://github.com/nilsso/quadratic-sieve-rs/tree/main/src}{github.com/nilsso/quadratic-sieve-rs/}.
+
 \section{Implementing in Rust}
-
-With the fundamental algorithm completed in Python, I made the move to
-re-implementing in the Rust language. This section is primarily a
-retrospective on my experience in implementing \emph{(or at least
-attempting to implement)} the QS algorithm in Rust.
-I intend for it to be useful to anyone with an interest in Rust, as well as
-useful to myself in both reviewing my own knowledge of the language and
-providing a figurative map of my thoughts on the design of my project's
-implementation.
-I go over the Rust language
-in general, how its features have been very useful for implementing mathematical
-structures, and weave in how I used these features in my own QS implementation.
-If heavy use of programming jargon is not your thing then this section may not
-be very interesting.
-That being said, the full source code of the Rust portion of this project
-can be found here
-\begin{itemize}
-    \item \href{https://github.com/nilsso/quadratic-sieve-rs/tree/main/src}{github.com/nilsso/quadratic-sieve-rs/}
-\end{itemize}
-
-\subsection{Overview of Rust}\label{s:rust-overview}
 
 As far as fundamental paradigms go, Rust as a programming language has much in
 common with more classically object oriented languages like C++ or Java, but
