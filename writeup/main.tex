@@ -14,8 +14,9 @@
 \setminted{autogobble,breaklines}
 \hypersetup{
     colorlinks=true,
-    linkcolor=Blue,
+    linkcolor=BlueViolet,
     urlcolor=Bittersweet,
+    citecolor=RoyalPurple,
 }
 \setlist{
     %itemsep=1em,
@@ -27,14 +28,12 @@
 \newcommand{\colorA}{RoyalBlue}
 \newcommand{\colorB}{PineGreen}
 \newcommand{\colorC}{OrangeRed}
+\addbibresource{references.bib}
 \begin{document}
 
 \title{%
     Quadratic Sieve Algorithm \\[1em]
-    {\large%
-        a.k.a.\@ the Second Fastest Integer Factoring Algorithm in the West \\
-        (and trying to get it to work)
-    }
+    {\large (and trying to get it to work)}
 }
 \author{Nils Olsson}
 \date{Spring Semester, 2021}
@@ -48,16 +47,15 @@
 
 \pagebreak
 
-\begingroup
-\let\clearpage\relax
-\section*{Abstract}
+\chapter{Abstract}
 
-This report serves as a summary of the history and mathematical theory behind
-square factoring functions, as an loose introduction to the Rust programming
-language, and as a retrospective on my own implementing of the quadratic sieve
-(QS) algorithm.
+This report serves as a summary of the developmental history and mathematical theory behind
+factoring functions that utilize congruences of squares, including Fermat's method, random squares
+factoring, Dixon's method, and the quadratic sieve (QS) algorithm; the second half consists of a
+conceptual introduction to the Rust programming language, serving more as a retrospective upon my
+attempted implementation of the QS algorithm.
 
-\chapter{Introduction}
+\section{Introduction}
 
 The factorization of integers has been an especially well studied problem,
 and not just for centuries but in fact millennia.
@@ -73,7 +71,19 @@ calculating the greatest common divisor of two integers.
 These ancient algorithms, and many others, comprise the fundamental building
 blocks for which all modern integer factorization algorithms are made.
 
-\endgroup
+Number theorists to this very day strive to push factorization algorithms to their furthest,
+attempting to find increasingly efficient methods of factoring large composite numbers.
+With the advent of computers in the 20th century, algorithms could now leverage centuries of
+man-hour's worth of computational work, and by the 80's several bleeding-edge algorithms
+had been invented and tested; in particular Dixon's random squares method, the quadratic sieve (QS)
+algorithm, and several others.
+
+In this report I seek to build an understanding of not just the mathematics behind such algorithms
+but the thought processes in developing such algorithms; the impetus behind them. This leads into
+a broader retrospective on my own experiences in implementing these algorithms in the Rust
+programming language (having effectively implemented them in Python).
+
+\pagebreak
 
 \chapter{Factoring via Congruences of Squares}
 
@@ -145,7 +155,8 @@ relies on a simple fact: that any odd integer is equal to the difference of squa
 \columnratio{0.6}
 \begin{paracol}{2}
     \noindent
-    As a simple visual proof of this fact, let $N$ be any odd integer.
+    As a simple visual proof of this fact, let $N$ be any odd integer
+    \cite{illustrated}.
     By definition of $N$ being odd, $N=2m+1$ for some integer $b$.
     \begin{enumerate}
         \item Draw a single \pdot{} dot capped on either side by $m$ \bdot{} dots.
@@ -273,7 +284,9 @@ Explicitly, we have the \emph{Legendre symbol} of $a$ modulo odd prime $p$:
 \end{equation}
 (These equivalent forms were expressed historically by Legendre and Euler.)
 Then \emph{Jacobi symbol} $\left(\frac{a}{n}\right)$ generalizes the Legendre symbol for
-when instead the modulus is a composite $n$. Both the Legendre and Jacobi symbols have many
+when instead the modulus is a composite $n$
+\cite{textbook}.
+Both the Legendre and Jacobi symbols have many
 useful properties, but in particular if $n$ has the prime factorization
 $p_1^{e_1}p_2^{e_2}\cdots p_k^{e_k}$, then we have that the Jacobi symbol of $a$ modulo $n$
 can be expressed as the product of powers of the Legendre symbols over each prime:
@@ -313,7 +326,7 @@ In Dixon's method, the selection of these various $a_i$'s can be random, but con
 division may be expensive it is favorable to find them in a way where $b_i\pmod n$ ends up small.
 Two such ways, with integers $j\ge 0$ and $k\ge 1$, are $j+\ceil{\sqrt{kn}}$ and
 $\floor{\sqrt{kn}}$; the former produces integers $a_i^2\pmod n$ that tend small, and
-the later produces integers $-a_i^2\pmod n$ that also tend to be small.
+the later produces integers $-a_i^2\pmod n$ that also tend to be small \cite{handbook}.
 (One thing to note is that in the case of the later we need to add $p_0=-1$ to the
 factor base to be able to factor anything in the form $-a_i^2$; ultimately this doesn't change
 anything about the algorithm aside that it can greatly improve the speed at which we find pairs
@@ -379,6 +392,22 @@ As for our avenues of recourse, we can:
     \item Start over with an expanded factor base.
 \end{enumerate}
 
+One question we have ignored is \emph{how do we select a satisfactory factor base?}
+The scope of this question is beyond my intent for this paper, but the optimal selection for $t$,
+based upon the study of smooth integers near arbitrary $\sqrt n$, is supposedly near to $L_n[\frac 1
+2,\frac 1 2]$, where
+\[
+    L_q[\alpha,c]
+    = O(\exp((x+o(1))(\ln q)^\alpha(\ln \ln q)^{1-\alpha}))
+\]
+But frankly this is beyond my knowledge of complexity.
+\cite{handbook}.
+
+A second question could concern the sieving interval.
+Clearly we have a minimum number of $(a_i,b_i)$ pairs for linear dependence, but by my judgmet
+we might as well find more than we ``need'', should several linear dependent cases fail to produce
+any pair such that $a_i\not\equiv b_i1\pmod n$.
+
 \section{The Quadratic Sieve Algorithm}
 
 Last but not least we discuss the QS algorithm, but despite all this lead-up there is truly not that
@@ -386,8 +415,11 @@ much more to it in comparison to Dixon's. The QS algorithm functions almost iden
 method, except for the way in which potential $a_i$'s are selected: first by a simple translation,
 and second in actual ``sieving.''
 
-Letting $n$ be the integer to factor and $m=\floor{\sqrt n}$, consider the polynomial
-$f(x)=(x+m)^2-n$. In Dixon's algorithm we selected $a_i$'s either randomly or using a slight
+Letting $n$ be the integer to factor and $m=\floor{\sqrt n}$, consider the polynomial:
+\begin{equation}
+    f(x)=(x+m)^2-n.
+\end{equation}
+In Dixon's algorithm we selected $a_i$'s either randomly or using a slight
 heuristic. Instead, in the QS algorithm we select $a_i=(x+m)$, calculate a corresponding
 $b_i=(x+m)^2-n$ and test whether $b_i$ is $p_t$-smooth (just like in Dixon's).
 Note the relationship between $a_i$ and $b_i$ pair:
@@ -409,19 +441,228 @@ $(x+m)^2-n$ (from our definition of $b_i$), which gives us
 Clearly $(x+m)^2$ is a square, meaning that $n$ is a quadratic residue (modulo $p$)!
 Therefore we can narrow down the factor base to contain only those primes $p_j$ such that
 is a quadratic residue modulo $p$).
+And from here we have all the tools we need to begin search for $(a_i,b_i)$ pairs in a fashion
+practically identical to that in Dixon's. The sequence $x=0,\pm 1,\pm 2,\ldots$ even keeps each
+corresponding $b_i$ fairly small in absolute value (similar to the heuristics in Dixon's).
 
-From here we have all the tools we need to begin search for $(a_i,b_i)$ pairs in a fashion
-practically identical to that in Dixon's. The sequence $x=0,\pm 1,\pm 2,\ldots$ even keeps $b_i$
-fairly small in absolute value (similar to the heuristics in Dixon's).
+However, \emph{what of the sieving?}
+Up to now, validating each $b_i$ has consisted of trial division.
+This method is easy and not terrible for numbers that are not too big but the performace cost it
+imposes upon the data collection stage of the algorithm (the collecting of the pairs) is high.
+Lets consider the following family of functions $f(x+kp)$ where $p$ is an odd prime and $k$ an
+integer:
+\begin{equation}
+    \begin{aligned}
+        f(x)=(x+m)^2-n \Rightarrow
+        f(x+kp)
+        &= ((x+kp)+m)^2 - n \\
+        &= x^2+2xkp+2xm+(kp)^2+2kpm+m^2-n \\
+        &= (x^2+2xm+m^2-n) + (2xkp+(kp)^2+2kpm) \\
+        &= ((x+m)^2-n)+p(2xk+k^2 p+2km) \\
+        &\equiv f(x) \equiv (x+m)^2 \pmod{p}.
+    \end{aligned}
+\end{equation}
+Thus if we can solve $f(x) = (x+m)^2-n \equiv 0\pmod p$ for $x$ then we have an \emph{entire
+sequences} of numbers $\{f(x):x=0,\pm 1,\pm 2,\ldots,\pm I\}$ (for sieving interval $I$), one
+for any root we find, for which \emph{every} element is in-fact divisible by the prime $p$.
+Solving for the quadratic roots here is over modulo $p$ which in itself adds another layer of
+complexity; one popular algorithm for calculating these roots, which I implemented, is the
+Tonelli-Shanks algorithm.
+\begin{minted}{python}
+    # Get two quadratic roots (or double root)
+    # of an integer modulo a prime, if they exists.
+    # (Tonelli-Shanks algorithm)
+    #
+    # @param n Integer whose roots to return
+    # @param p Prime modulus
+    # @return (r1,r2) Two quadratic root of n modulo p, or (None, None)
+    def sqrt_mod(n, p):
+        if p == 2:
+            # Any integer has a double root 0 or 1 modulo 2
+            r = n % 2
+            return (r, r)
+        if not is_quadratic_residue(n, p):
+            return (None, None)
+        # express p - 1 as q*2^s (where q is odd)
+        q, s = div_while(p - 1, 2)
+        if s == 1:
+            r = pow(n, (p+1)//4, p)
+            return (r, p - r)
+        # find a quadratic-non residue modulo p (in this case the first)
+        z = next(filter(lambda z: not is_quadratic_residue(z, p), range(2, p)))
+        m = s
+        c = pow(z, q, p)
+        t = pow(n, q, p)
+        r = pow(n, (q+1)//2, p)
+        while (t - 1) % p != 0:
+            # find least 0 < i < m st. t^(2^i) ≡ 1 (mod p)
+            i = next(i+1 for (i, t2) in enumerate(squarings(t, p)) if (t2 - 1)
+            b = pow(c, 1 << (m - i - 1), p) # b = c^(2^(m-i-1))
+            r = (r * b) % p
+            c = (b * b) % p
+            t = (t * c) % p
+            m = i
+        return (r, p - r)
+\end{minted}
 
-\chapter{Implementation}
+There are several methods of initializing the values of the sieve, but in all cases the values are
+indexed by the parameter $x$. In my implementation, the $x^\text{th}$ value is initialized
+to $f(x)$. Then for each prime in the factor base we solve for the roots $r_1$ and $r_2$ of $f(x)$
+modulo $p$ (with the possibility that $r_1=r_2$).
+Then every element of the sieve with index congruent to $r_j$ modulo $p$ is divisible by $p$,
+and for those values we divide by $p$ (until we no longer can).
+\begin{minted}{python}
+    # Find p_b smooth square numbers within a sieving interval
+    #
+    # @param n Integer to find two non-trivial factors of
+    #   (but also the quadratic polynomial linear term)
+    # @param b Desired factor base length
+    # @param I Sieving interval
+    # @return List of sieved x's, of y's (corresponding in parallel with the x's
+    #   as smooth pairs), and the factor base
+    def find_smooth(n, b, I):
+        m = ceil(sqrt(n))
+        # Sieve from sieving interval
+        V = [(x + m)**2 - n for x in range(I)]
+        # In tandem, find b primes p for which n has roots modulo p
+        p_root_pairs = list(take(b, iter_roots(n)))
+        fb, roots = zip(*p_root_pairs)
+        # Sieve!
+        for (p, roots) in p_root_pairs:
+            for r in roots:
+                start = (r - m) % p
+                for i in range(start, len(V), p):
+                    while V[i] % p == 0:
+                        V[i] //= p
+        # Construct, collect and return the x's and y's (which are smooth)
+        xs = [i + m for (i, v) in enumerate(V) if abs(v) == 1]
+        ys = [x**2 - n for x in xs]
+        return (xs, ys, fb)
+\end{minted}
+Once we have done this for every $p$ in the factor base, we know that whenever we see a value of 1
+within the sieve that that initial value was not just $p_t$-smooth \emph{but also entirely
+factorable} over the factor base. We can recalculate from the indices $x$ the original values for
+$b_i$ that we now know are factorable as we desire (and as far as prime factorization goes, we can
+divide by primes only in the factor base and still receive a full prime power factorization).
+And from here we find ourselves back at Dixon's method, solving for linear dependencies within
+the points we sieved for, which concludes our overview of congruence of square factorization
+methods.
 
-I decided to designate the implementation discussion to the Rust implementation
-as opposed to the Python implementation. Not because it is more complete than
+\emph{
+    But as a reminder, the quadratic sieve algorithm, like Dixon's method, and like random squares,
+    serves a specific purpose with a larger factoring algorithm. QS is absolutely not going to be the
+    fastest algorithm for a very large amount of potential inputs, and often we shouldn't use
+    QS until having at least tried both trial division and Fermat's methods for several values.
+}
+
+The following is some test runs of my implementation of the algorithm, timed using the
+\mintinline{bash}{time} command execution utility. The results were cherry picked to at least
+be composites.
+It is no where near as efficient as I can make it, but this Python venison was more for learning
+and verifying how the algorithm works, in rough detail.
+After the sample output is a snippet of the code of my implementation, specifically the highest
+scope of the algorithm, \mintinline{python}{def qs(n, b, I)}, and parts of the matrix operation
+functions I also needed to implement to be able to find the linear dependencies efficiently.
+(The first iteration of my implementation simply tried all combinations, but this rather quickly
+and obviously got out of hand for large factor bases.)
+
+All that is left is to discuss the programming itself, and some of the particular challenges I faced
+during the implementation of the QS algorithm.
+\begin{minted}{bash}
+    > time python3 qs-sieving.py 16843009979 50 4000
+    (881, 19118059)
+    python3 qs-sieving.py 16843009979 50 4000  0.34s user 0.10s system 115% cpu 0.375 total
+
+    > time python3 qs-sieving.py 16843812359755 300 15000
+    (31667, 531904265)
+    python3 qs-sieving.py 16843812359755 300 15000  1.23s user 0.09s system 127% cpu 1.032 total
+
+    # the following are products of two primes
+
+    # notice that we could have used trial division here
+    # and found non-trivial factors within 4 iterations, when d=5,
+    # much much faster than QS
+    > time python3 qs-sieving.py 16843812359755 250 15000
+    (3368762471951, 5)
+    python3 qs-sieving.py 16843812359755 250 15000  1.01s user 0.10s system 136% cpu 0.807 total
+
+    # but for this result, trial division would have failed miserably in needing to check up to
+    # 73477 (since both these factors are prime). Fermat's would need to check approximately
+    # 98669-sqrt(7249902113) = 13523 values
+    > time python3 qs-sieving.py 7249902113 50 4000
+    (98669, 73477)
+    python3 qs-sieving.py 7249902113 50 4000  0.27s user 0.06s system 162% cpu 0.206 total
+
+    > time python3 qs-sieving.py 30240256903 50 4000
+    (45631, 662713)
+    python3 qs-sieving.py 30240256903 50 4000  0.31s user 0.09s system 64% cpu 0.617 total
+\end{minted}
+\pagebreak
+\subsubsection*{Excerpts of the Python implementation}
+\begin{minted}{python}
+    # Quadratic sieve
+    #
+    # My implementation of a single-polynomial quadratic sieve.
+    #
+    # @param n Integer to find two non-trivial factors of
+    # @param b Desired factor base length
+    # @param I Sieving interval
+    def qs(n, b, I):
+        xs, ys, fb = find_smooth(n, b, I)
+        # ...
+        for indices in combinations(range(len(xs)), len(fb)+1):
+            xs_ = [xs[i] for i in indices]
+            ys_ = [ys[i] for i in indices]
+            emat, bmat = construct_exponent_mats(ys_, fb)
+            # The augmented binary matrix is for solving for the left nullspace,
+            # and thus all the subsets of linearly dependent exponent vector indices.
+            for indices in ld_index_iter(bmat):
+                x = prod(xs_[i] for i in indices)
+                l = [sum(emat[i][j] for i in indices) // 2 for j in range(len(fb))]
+                y = prod(p**e for (p, e) in zip(fb, l))
+                if not x % n in [y % n, -y % n]:
+                    return (gcd(x + y, n), gcd(x - y, n))
+
+    # Iterator over linearly dependent row index subsets of a binary matrix.
+    # (Refer to the notes in the to_echelon_form function about how to find
+    # linearly dependent row index subsets.)
+    #
+    # @param mat Matrix
+    # @yields Subset of binary matrix row indices in left-nullspace
+    def ld_index_iter(bmat):
+        n = len(bmat[0])
+        bmat_aug = augment(bmat)
+        bmat_echelon = to_echelon_form(bmat_aug)
+        for i in range(len(bmat_echelon)):
+            if all(a == 0 for a in bmat_echelon[i][:n]):
+                coords = bmat_echelon[i][n:]
+                indices = [i for (i, b) in enumerate(coords) if b]
+                if len(indices) > 0:
+                    yield indices
+
+    # Bring binary matrix into echelon form.
+    #
+    # If the matrix to bring to echelon form is an augmented matrix, then in
+    # echelon form the sub-rows within the augmentation sub-matrix correspond to
+    # subsets of the row indices of the original matrix that are linearly dependent
+    # modulo 2 (i.e. in the left nullspace).
+    #
+    # @param mat Matrix to operate over
+    # @return Computed echelon form matrix
+    def to_echelon_form(mat):
+        mat = deepcopy(mat)
+        #...
+\end{minted}
+
+\chapter{Notes on Implementation}
+
+I decided to designate the implementation discussion to the Rust implementation alone.
+Not because it is more complete than
 the Python implementation (on the contrary even), but because I find it vastly
-more interesting. Still, I wrote the Python implementation first as a sanity
+more interesting, and because I included much of the Python implementation in the previous half
+of this report. Still, the Python implementation works; I wrote it primarily as a sanity
 check (it is definitely easier and faster to bang-out an implementation in
-Python than Rust) and its entirety can be found here:
+Python than Rust) and its entirety can be found here:\\
 \href{https://github.com/nilsso/quadratic-sieve-rs/tree/main/python-version}{github.com/nilsso/quadratic-sieve-rs/python-version/}.
 
 For those who wish to peruse it, begin in the
@@ -429,8 +670,8 @@ For those who wish to peruse it, begin in the
 module, which can then lead you to the other modules and how they are used
 (like the Tonelli-Shanks
 \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/python-version/sqrt\_mod.py#L22}{sqrt\_mod}
-algorithm, which leads to the Legendre symbol implementation, the \Verb+is_quadratic_prime+
-function and the \Verb+legendre_primes+ iterator in
+algorithm, which leads to the Legendre symbol implementation, the \mintinline{rust}{is_quadratic_prime}
+function and the \mintinline{rust}{legendre_primes} iterator in
 \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/python-version/legendre.py}{legendre.py}).
 
 With the fundamental algorithm completed in Python, I made my move to Rust.
@@ -452,43 +693,43 @@ also a lot in common with purely function languages like Haskell.
 Similarities with the later are in Rust's sophisticated \emph{trait} feature,
 analogous to Haskell's \emph{type classes}, with which Rust acomplishes
 polymorphism.
-In C++, polymorphism in achieved through hierarchies of \Verb+class+es and
-abstract \Verb+classes+ (i.e. interfaces)
-(e.g.\@ if a \Verb+Square+ derives from \Verb+Shape+, then a function which
-accepts a \Verb+Shape+ can accept a \Verb+Square+).
-Although Rust encapsulates data and functionality through \Verb+struct+s
-(analogous to C++ \Verb+class+es) and their instantiations,
+In C++, polymorphism in achieved through hierarchies of \mintinline{cpp}{class}es and
+abstract \mintinline{cpp}{classes} (i.e. interfaces)
+(e.g.\@ if a \mintinline{rust}{Square} derives from \mintinline{rust}{Shape}, then a function which
+accepts a \mintinline{rust}{Shape} can accept a \mintinline{rust}{Square}).
+Although Rust encapsulates data and functionality through \mintinline{rust}{struct}s
+(analogous to C++ \mintinline{cpp}{class}es) and their instantiations,
 polymorphism in Rust is achieved \emph{only} through its traits
-(e.g.\@ if \Verb+Shape+ is a trait and \Verb+Square+ implements the \Verb+Square+
-trait, then a function that requires its argument implement \Verb+Shape+ can
-accept a \Verb+Square+).
+(e.g.\@ if \mintinline{rust}{Shape} is a trait and \mintinline{rust}{Square} implements the \mintinline{rust}{Square}
+trait, then a function that requires its argument implement \mintinline{rust}{Shape} can
+accept a \mintinline{rust}{Square}).
 
 The most substantial difference in polymorphism is that there is \emph{no such
-thing} as inheritance for Rust \Verb+struct+s like there is for C++
-\Verb+class+es. (e.g. in C++, \Verb+Square+ as a \Verb+class+ is a subclass of
-an abstract class \Verb+Shape+;
-in Rust, \Verb+Square+ \emph{implements} \Verb+Shape+, where \Verb+Square+ is a
-\Verb+struct+ and \Verb+Shape+ is a \Verb+trait+. Further more, \emph{if
-\Verb+Shape+ was a \Verb+struct+ instead of a \Verb+trait+},
-\Verb+Square+ could not inherent any of \Verb+Shape+'s functionality and neither
+thing} as inheritance for Rust \mintinline{rust}{struct}s like there is for C++
+\mintinline{cpp}{class}es. (e.g. in C++, \mintinline{rust}{Square} as a \mintinline{cpp}{class} is a subclass of
+an abstract class \mintinline{rust}{Shape};
+in Rust, \mintinline{rust}{Square} \emph{implements} \mintinline{rust}{Shape}, where \mintinline{rust}{Square} is a
+\mintinline{rust}{struct} and \mintinline{rust}{Shape} is a \mintinline{rust}{trait}. Further more, \emph{if
+\mintinline{rust}{Shape} was a \mintinline{rust}{struct} instead of a \mintinline{rust}{trait}},
+\mintinline{rust}{Square} could not inherent any of \mintinline{rust}{Shape}'s functionality and neither
 would share any functionality---as far as the compiler is concerned---without
 them both implementing some other trait.)
 This is a major paradigm shift for anyone moving from C++ to Rust, as
 inheritance based polymorphism is more-or-less the only flavor of polymorphism
 that students of computer science/programming are likely to have learned (as was
 the case for me especially), and one might believe on a first glance that if
-inheritance is not a feature then Rust \Verb+struct+s cannot share functionality
+inheritance is not a feature then Rust \mintinline{rust}{struct}s cannot share functionality
 without copying entire swathes of code.
 
-Instead, Rust \Verb+trait+s fill this purpose: a \Verb+trait+ can define default
-functionality for which any \Verb+struct+ which implements the trait inherits.
-For example, the code in \cref{fig:trait-demo} defines a trait \Verb+Pow+
+Instead, Rust \mintinline{rust}{trait}s fill this purpose: a \mintinline{rust}{trait} can define default
+functionality for which any \mintinline{rust}{struct} which implements the trait inherits.
+For example, the code in \cref{fig:trait-demo} defines a trait \mintinline{rust}{Pow}
 representing the capability of the implementing type to be ``raised to a
 power,'' for which any type can implement. (A note on the language: an
-\Verb+impl+ block \emph{implements} functionality, i.e.\@ one or several
+\mintinline{rust}{impl} block \emph{implements} functionality, i.e.\@ one or several
 functions, onto an existing type. These can be \emph{methods} for instances of
-the type, like \Verb+a.foo()+, or \emph{functions} belonging to the type itself,
-like \Verb+Foo::foo()+.)
+the type, like \mintinline{rust}{a.foo()}, or \emph{functions} belonging to the type itself,
+like \mintinline{rust}{Foo::foo()}.)
 \begin{code}
     \begin{minted}{rust}
         trait Pow {
@@ -517,10 +758,10 @@ like \Verb+Foo::foo()+.)
 \end{code}
 \noindent
 The fundamental advantage of traits used in this way is that if we then write a
-function in which we need the functionality of \Verb+pow+, then we can require
+function in which we need the functionality of \mintinline{rust}{pow}, then we can require
 that whatever type(s) the function works over, and/or takes as parameters,
-\emph{implement the \Verb+Pow+ trait}; furthermore, anyone is allowed to
-implement \Verb+Pow+ trait, and thus use our function with their own \Verb+Pow+
+\emph{implement the \mintinline{rust}{Pow} trait}; furthermore, anyone is allowed to
+implement \mintinline{rust}{Pow} trait, and thus use our function with their own \mintinline{rust}{Pow}
 implementing type. In other words, \emph{polymorphism in Rust is achieved by
 abstracting over the functionality that types have, and not the types
 themselves in particular}. We call these functionality requirements on types
@@ -533,9 +774,9 @@ continuously from now on: my implementation of $M\times N$ matrices,
 \verb+Matrix+.
 At its most generic, a matrix can be just a two-dimensional storage location
 in which we could potentially store anything. As such, in
-\cref{fig:rust-matrix-def} I define \Verb+Matrix+ without any bounds on what
+\cref{fig:rust-matrix-def} I define \mintinline{rust}{Matrix} without any bounds on what
 it is allowed to store aside from the type needing to be clonable.
-(Heed not the syntax \Verb+const M+ and \Verb+const N+, but know that they
+(Heed not the syntax \mintinline{rust}{const M} and \mintinline{rust}{const N}, but know that they
 control the size of the matrix; we will cover this syntax in a few paragraphs
 from here)
 \begin{code}
@@ -552,12 +793,12 @@ from here)
     \label{fig:rust-matrix-def}
 \end{code}
 \noindent
-In this snippet, \Verb+T+ is called a generic parameter, and it is given the
-trait bound \Verb+Clone+; thus we are allowed to make a matrix of type \Verb+T+
-for any type \Verb+T+ that is clonable. Personally, I find something inherently
+In this snippet, \mintinline{rust}{T} is called a generic parameter, and it is given the
+trait bound \mintinline{rust}{Clone}; thus we are allowed to make a matrix of type \mintinline{rust}{T}
+for any type \mintinline{rust}{T} that is clonable. Personally, I find something inherently
 mathematical about the way in which we can restrict generic types in Rust. This
 leads me to a particular implementation (\cref{fig:rust-matrix-zero}) for my
-\Verb+Matrix+ \Verb+struct+: the zero matrix.
+\mintinline{rust}{Matrix} \mintinline{rust}{struct}: the zero matrix.
 \begin{code}
     \begin{minted}{rust}
         impl<T, const M: usize, const N: usize> Matrix<T, M, N>
@@ -578,21 +819,21 @@ leads me to a particular implementation (\cref{fig:rust-matrix-zero}) for my
 \noindent
 In this snippet we define the construction of a zero matrix of specified size
 $M\times N$. This begs the question: \emph{how do we know
-that the type \Verb+T+, for which the matrix is over, has a representation of zero at
-all?} For the generic type \Verb+T+, the only way then for the compiler to know
-that \Verb+T+ has zero is to impose an additional trait bound, in this case a
-trait of my own called \Verb+Zero+. The only thing that this trait requires is
+that the type \mintinline{rust}{T}, for which the matrix is over, has a representation of zero at
+all?} For the generic type \mintinline{rust}{T}, the only way then for the compiler to know
+that \mintinline{rust}{T} has zero is to impose an additional trait bound, in this case a
+trait of my own called \mintinline{rust}{Zero}. The only thing that this trait requires is
 that an implementing type provide a constant representation of zero, and with
 this we have a value with which to fill a zero matrix. Additionally, note the
-\Verb+Element = T+ part of the trait bound: this requires that not only
-does \Verb+T+ need to have a zero element, but that the zero element \emph{must
-be of the same type as \Verb+T+ itself}. This allows for a distinction when, for
+\mintinline{rust}{Element = T} part of the trait bound: this requires that not only
+does \mintinline{rust}{T} need to have a zero element, but that the zero element \emph{must
+be of the same type as \mintinline{rust}{T} itself}. This allows for a distinction when, for
 example, something like a set of numbers has a zero element, but the zero
 element is not itself a set (think of the quotient group $\ZZ_n$ having the
 congruence class $[0]_n$ as its zero element).
 (See \cref{fig:rust-zero}
-for the implementation of \Verb+Zero+ on \Verb+i32+ integers and on my own
-\Verb+CongruenceClass+ \Verb+struct+; I cover the later in more detail
+for the implementation of \mintinline{rust}{Zero} on \mintinline{rust}{i32} integers and on my own
+\mintinline{rust}{struct CongruenceClass}; I cover the later in more detail
 next).
 \begin{code}
     \begin{minted}{rust}
@@ -628,7 +869,7 @@ next).
 \end{code}
 
 A highly experimental feature of Rust that I only discovered since having
-started this project is \emph{\Verb+const+ \Verb+generics+}. This feature has proven to
+started this project is \emph{\mintinline{rust}{const} generics}. This feature has proven to
 be incredibly useful in the implementation of various mathematical structures,
 in particular congruence classes (see \cref{fig:rust-congruence-class}) and
 matrices.
@@ -676,16 +917,16 @@ matrices.
 \end{code}
 \noindent
 What const generics do is bake a constant value (though currently
-only primitive types like \Verb+u32+ are supported) directly into a \Verb+trait+
-or \Verb+struct+. This allows the compiler to know at compile time (or more
+only primitive types like \mintinline{rust}{u32} are supported) directly into a \mintinline{rust}{trait}
+or \mintinline{rust}{struct}. This allows the compiler to know at compile time (or more
 specifically the type checker and type check time) whether or not, say, two
-instances of a \Verb+struct+ are compatible with one-another based on the
+instances of a \mintinline{rust}{struct} are compatible with one-another based on the
 constants that are baked into their types; because although a may have to
-instances of \Verb+CongruenceClass+, their types are not fully qualified
+instances of \mintinline{rust}{CongruenceClass}, their types are not fully qualified
 without the constant modulus.
 
 Another instance in which this feature was useful was in the defining of my
-matrix \Verb+struct+. What is amazing about the const generic feature in this
+matrix \mintinline{rust}{struct}. What is amazing about the const generic feature in this
 case is that the validity checking of operations like matrix addition and
 multiplication no longer need to take place a runtime, and instead are
 \emph{completely validated at compile time}! (See the implementation of addition
@@ -725,21 +966,21 @@ success of such operations at runtime, eliminating the perhaps drastic amount of
 time spent checking whether matrices have compatible shapes at runtime
 otherwise.
 
-Now, because \Verb+Matrix+ was defined generically, it was trivial
-to use it and \Verb+CongruenceClass+ in conjunction to solve for the linear
+Now, because \mintinline{rust}{Matrix} was defined generically, it was trivial
+to use it and \mintinline{rust}{CongruenceClass} in conjunction to solve for the linear
 dependent subsets of the binary exponent vectors. If I know $B$ the size of the
 factor base and have acquired $B+1$ smooth points, then I can map the exponent
 vectors of the prime factorizations of the points into a matrix over $\ZZ_2$;
 in Rust the type of this matrix looks like
-\Verb!Matrix<! \Verb!CongruenceClass<2>,! \Verb!B+1,! \Verb!B>!.
+\mintinline{rust}{Matrix<CongruenceClass<2>, B+1,B>}.
 Having
 \href
 {https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/matrix.rs#L344}
 {implemented the row-reduction of a matrix into Echelon form}
-for any generic type \Verb+T+ (achievable given a variety of trait bounds), then
+for any generic type \mintinline{rust}{T} (achievable given a variety of trait bounds), then
 nothing additional need be implemented for solving for the spanning vectors of
 the exponent matrix left nullspace over the particular type $\ZZ_2$ (that is,
-\Verb!CongruenceClass<2>! in Rust). And thus the problem of solving for the
+\mintinline{rust}{CongruenceClass<2>} in Rust). And thus the problem of solving for the
 linearly dependent exponent vectors was solved.
 And, up to this point, with these tools (and with implementing a few other
 helper algorithms) I was additionally able to implement the quadratic sieving
@@ -748,12 +989,12 @@ base, guaranteeing linear dependence between their binary exponent vectors).
 
 \emph{However}, this is where the story for the time being turns sour, as
 I am currently \emph{not} able to complete my implementation of the QS algorithm
-based on the fact that my matrix \Verb+struct+ requires knowing the number of rows $M$
+based on the fact that my matrix \mintinline{rust}{struct} requires knowing the number of rows $M$
 and columns $N$ \emph{at compile time}. Depending on the number to factor $n$,
 there is no way for my program to deterministically know at compile time how
 large the factor base needs to be (controlling the number of columns of the
 matrix) nor how many smooth numbers it finds (controlling the number of rows).
-And given that \Verb+Matrix+ requires that its dimensions $M$ and $N$ be known
+And given that \mintinline{rust}{Matrix} requires that its dimensions $M$ and $N$ be known
 at compile time, I currently cannot construct the necessary matrices from the
 exponent vectors. A solution will be found eventually (for instance I should be
 able to change the factor base length argument into a const generic of the
@@ -783,13 +1024,13 @@ tooling) project looks as follows:
         and matrix structs.
     \item %
         \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/matrix.rs}{\textbf{matrix.rs}}
-        contains the \Verb+Matrix+ definition and its implementations.
+        contains the \mintinline{rust}{Matrix} definition and its implementations.
     \item %
         \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/congruence\_class.rs}{\textbf{congruence\_class.rs}}
-        contains the \Verb+CongruenceClass+ definition and its implementations.
+        contains the \mintinline{rust}{CongruenceClass} definition and its implementations.
     \item %
         \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/identity.rs}{\textbf{identity.rs}}
-        contains the \Verb+Zero+ and \Verb+One+ traits, and their primitive type
+        contains the \mintinline{rust}{Zero} and \mintinline{rust}{One} traits, and their primitive type
         implementations.
     \item %
         \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/integers.rs}{\textbf{integers.rs}}
@@ -805,10 +1046,12 @@ tooling) project looks as follows:
         for fun like with
         \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/quotient_group.rs}{quotient groups},
         \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/complex.rs}{complex numbers} and the
-        \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/conjugate.rs}{\Verb!Conjugate! trait}
-        (of which \Verb+Matrix+ implements as long as \Verb+T+
-        implements \Verb!Conjugate!; i.e.\@ integers and complex numbers).
+        \href{https://github.com/nilsso/quadratic-sieve-rs/blob/main/src/conjugate.rs}{\mintinline{rust}{Conjugate} trait}
+        (of which \mintinline{rust}{Matrix} implements as long as \mintinline{rust}{T}
+        implements \mintinline{rust}{Conjugate}; i.e.\@ integers and complex numbers).
 \end{itemize}
+
+\printbibliography[title=References,heading=bibintoc]
 
 \end{document}
 
